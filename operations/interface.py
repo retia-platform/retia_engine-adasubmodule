@@ -1,13 +1,13 @@
 import requests, json
 from operations.url_generator import urlGenerator
 
+
 def getList(ipaddr: str, port: str,  credential: tuple, header: dict)->dict:
-    target_url=urlGenerator(ipaddr, port, "ietf-interfaces", "interfaces", "interface")
+    target_url=urlGenerator(ipaddr, port, "ietf-interfaces", "interfaces", "interface", optional_params="fields=name")
     response=requests.get(url=target_url, auth=credential, headers=header, verify=False)
     response_code=response.status_code
     try:
-        response_body=json.loads(response.text)
-        response_body=response_body["ietf-interfaces:interfaces"]["interface"]
+        response_body=json.loads(response.text)["ietf-interfaces:interface"]
         response_body_interface_list=[]
         for interface_name in response_body:
             response_body_interface_list.append(interface_name["name"])
@@ -33,9 +33,11 @@ def get(ipaddr: str, port: str,  credential: tuple, header: dict, interface_name
 
     return {"code" : response_code, "body" : response_body}
     
+
 def set(ipaddr: str, port: str,  credential: tuple, header: dict, interface_name: str, req_to_change: dict):
     target_url=urlGenerator(ipaddr, port, "ietf-interfaces", "interfaces", "interface", interface_name)
     update_body=get(ipaddr, port, credential, header, interface_name)["body"]
+
     # Interface Description
     if len(req_to_change["description"])>0:
         update_body["description"]=req_to_change["description"]
@@ -56,30 +58,7 @@ def set(ipaddr: str, port: str,  credential: tuple, header: dict, interface_name
     # Interface enable
     update_body["enabled"]=req_to_change["enabled"]
 
+    # Submit
     update_body=json.dumps({"ietf-interfaces:interface":update_body})
     response=requests.put(url=target_url, auth=credential, headers=header, data=update_body, verify=False)
     return {"code": response.status_code, "body":response.text}
-
-    
-
-
-
-
-
-    # target_url=urlGenerator(ipaddr, port, "ietf-interfaces", "interfaces", "interface", interface_name)
-    # update_body=json.dumps({"ietf-interfaces:interface":update_body})
-    # print(update_body)
-    # response = requests.put(url=target_url, auth=credential, headers=header, data=update_body, verify=False)
-
-    # try:
-    #     if len(interface_name) > 1:
-    #         response_body=json.loads(response.text)
-    #         response_body=response_body["ietf-interfaces:interface"]
-    #     else:
-    #         response_body=json.loads(response.text)
-    #         response_body=response_body["ietf-interfaces:interfaces"]["interface"]
-    # except:
-    #     response_body = {}
-
-    # return {"code" : response.status_code, "body" : response_body}
-
