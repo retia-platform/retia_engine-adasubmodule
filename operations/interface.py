@@ -27,7 +27,7 @@ def get(ipaddr: str, port: str,  credential: tuple, header: dict, interface_name
             response_body=response_body["ietf-interfaces:interface"]
         else:
             response_body=json.loads(response.text)
-            response_body=response_body["ietf-interfaces:interfaces"]["interface"]
+            response_body=response_body["ietf-interfaces:interface"]
     except:
         response_body = {}
 
