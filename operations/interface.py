@@ -34,7 +34,7 @@ def get(ipaddr: str, port: str,  credential: tuple, header: dict, interface_name
     return {"code" : response_code, "body" : response_body}
     
 
-def set(ipaddr: str, port: str,  credential: tuple, header: dict, interface_name: str, req_to_change: dict):
+def set(ipaddr: str, port: str,  credential: tuple, header: dict, interface_name: str, req_to_change: dict)->dict:
     target_url=urlGenerator(ipaddr, port, "ietf-interfaces", "interfaces", "interface", interface_name)
     update_body=get(ipaddr, port, credential, header, interface_name)["body"]
 
