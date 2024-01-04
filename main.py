@@ -1,4 +1,4 @@
-from operations import interface, static_routing
+from operation import *
 
 
 global_ipaddr="192.168.137.1"
@@ -10,4 +10,7 @@ global_header={"Content-Type": "application/yang-data+json", "Accept": "applicat
 # print(getInterfaceList(global_ipaddr, global_port, global_auth, global_header))
 # print(interface.set(global_ipaddr,global_port, global_auth, global_header,"GigabitEthernet2",{"description":"ini desc","ip":"10.10.10.1", "netmask":"255.255.255.0", "enabled":"false"}))
 # print(interface.get(global_ipaddr, global_port, global_auth, global_header))
-print(static_routing.set(global_ipaddr, global_port, global_auth, global_header, [{"destination-prefix":"0.0.0.0/0", "next-hop-address":"192.168.137.2"}]))
+# print(static_routing.set(global_ipaddr, global_port, global_auth, global_header, [{"destination-prefix":"0.0.0.0/0", "next-hop-address":"192.168.137.2"}]))
+
+print(setLoginBanner({"ipaddr": global_ipaddr, "port": global_port, "credential": global_auth}, {"banner_login":""}))
+print(getLoginBanner({"ipaddr": global_ipaddr, "port": global_port, "credential": global_auth}))
