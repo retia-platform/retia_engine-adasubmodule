@@ -43,9 +43,10 @@ def setLoginBanner(conn_strings, req_to_change: dict):
         response=delSomething(conn_strings, "/banner/login")
 
     try:
-        response_body=json.loads(response.text)["Cisco-IOS-XE-native:banner"]
+        response_body=json.loads(response.text)
     except:
         response_body={}
+
     return {"code": response.status_code, "body": response_body}
 
 def getMotdBanner(conn_strings)->dict:
@@ -64,7 +65,29 @@ def setMotdBanner(conn_strings, req_to_change: dict):
         response=delSomething(conn_strings, "/banner/motd")
         
     try:
-        response_body=json.loads(response.text)["Cisco-IOS-XE-native:banner"]
+        response_body=json.loads(response.text)
     except:
         response_body={}
+    return {"code": response.status_code, "body": response_body}
+
+def getPassEncryption(conn_strings):
+    response=getSomething(conn_strings, "/service/")
+    if "password-encryption" in json.loads(response.text)["Cisco-IOS-XE-native:service"]:
+        response_body="true"
+    else:
+        response_body="false"
+    return {"code": response.status_code, "body": response_body}
+
+def setPassEncryption(conn_strings, req_to_change: dict):
+    if req_to_change["password-encryption"]=="true":
+        body=json.dumps({"Cisco-IOS-XE-native:service": {"password-encryption":[None]}})
+        response=patchSomething(conn_strings, "/service", body)
+    elif req_to_change["password-encryption"]=="false" and getPassEncryption(conn_strings)["body"]=="true":
+        response=delSomething(conn_strings, "/service/password-encryption")
+
+    try:
+        response_body=json.loads(response.text)
+    except:
+        response_body={}
+
     return {"code": response.status_code, "body": response_body}

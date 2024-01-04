@@ -12,5 +12,5 @@ global_header={"Content-Type": "application/yang-data+json", "Accept": "applicat
 # print(interface.get(global_ipaddr, global_port, global_auth, global_header))
 # print(static_routing.set(global_ipaddr, global_port, global_auth, global_header, [{"destination-prefix":"0.0.0.0/0", "next-hop-address":"192.168.137.2"}]))
 
-print(setLoginBanner({"ipaddr": global_ipaddr, "port": global_port, "credential": global_auth}, {"banner_login":""}))
-print(getLoginBanner({"ipaddr": global_ipaddr, "port": global_port, "credential": global_auth}))
+print(setPassEncryption({"ipaddr": global_ipaddr, "port": global_port, "credential": global_auth}, {"password-encryption":"true"}))
+# print(getPassEncryption({"ipaddr": global_ipaddr, "port": global_port, "credential": global_auth}))
