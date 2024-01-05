@@ -109,6 +109,53 @@ def setPassEncryption(conn_strings, req_to_change: dict):
 
     return {"code": response.status_code, "body": response_body}
 
+def getInterfaceList(conn_strings:dict)->dict:
+    target_url="https://%s:%s/restconf/data/ietf-interfaces:interfaces/interface?fields=name"%(conn_strings["ipaddr"], conn_strings["port"])
+    response=requests.get(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, verify=False)
+    response_code=response.status_code
+
+    if len(response.text)>0:
+        try:
+            response_body_interface_list=json.loads(response.text)["ietf-interfaces:interface"]
+            response_body=[]
+            for interface_name in response_body_interface_list:
+                response_body.append(interface_name["name"])
+        except:
+            response_body=json.loads(response.text)
+    else:
+        response_body = []
+
+    return {"code" : response_code, "body" : response_body}
+
+def getInterfaceDetail(conn_strings: dict, req_to_show: dict)->dict:
+    target_url="https://%s:%s/restconf/data/ietf-interfaces:interfaces/interface=%s"%(conn_strings["ipaddr"], conn_strings["port"], req_to_show["name"])
+    response=requests.get(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, verify=False)
+    response_code=response.status_code
+
+    if len(response.text)>0:
+        try:
+            response_body=json.loads(response.text)["ietf-interfaces:interface"]
+        except:
+            response_body=json.loads(response.text)
+    else:
+        response_body={}
+    return {"code" : response_code, "body" : response_body}
+
+def setInterfaceDetail(conn_strings:dict, req_to_change: dict)->dict:
+    target_url="https://%s:%s/restconf/data/ietf-interfaces:interfaces/interface=%s"%(conn_strings["ipaddr"], conn_strings["port"], req_to_change["name"])
+
+    int_type=getInterfaceDetail(conn_strings, {"name":req_to_change["name"]})["body"]["type"]
+
+    body=json.dumps({"ietf-interfaces:interface":{"name":req_to_change["name"], "type": int_type, "enabled": req_to_change["enabled"], "ietf-ip:ipv4": {"address":[{"ip":req_to_change["ip"], "netmask":req_to_change["netmask"]}]},"ietf-ip:ipv6":{}}}, indent=2)
+    print(body)
+    response=requests.put(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, verify=False, data=body)
+    try:
+        response_body=json.loads(response.text)
+    except:
+        response_body={}
+    return {"code": response.status_code, "body": response_body}
+
+    
 def getStaticRoute(conn_strings: dict)->dict:
     response=getSomething(conn_strings, "/ip/route/ip-route-interface-forwarding-list")
     if len(response.text)>0:
@@ -128,7 +175,6 @@ def setStaticRoute(conn_strings: dict, req_to_change: list)->dict:
     except:
         response_body={}
     return {"code": response.status_code, "body": response_body}
-
 
 def getOspfProcesses(conn_strings: dict)->list:
     response=getSomething(conn_strings, "/router/Cisco-IOS-XE-ospf:router-ospf/ospf/process-id?fields=id")
@@ -183,12 +229,15 @@ def setOspfProcessDetail(conn_strings: dict, req_to_change: dict)->dict:
         for r in req_to_change["redistribute"]:
             body["Cisco-IOS-XE-ospf:process-id"]["redistribute"][r]={}
 
-
+    try:
+        response_body=json.loads(response.text)
+    except:
+        response_body={}
+        
     body=json.dumps(body, indent=2)
-    print(body)
 
     response=putSomething(conn_strings, "/router/Cisco-IOS-XE-ospf:router-ospf/ospf/process-id=%s"%(req_to_change["id"]), body)
+    return {"code": response.status_code, "body": response_body}
 
-    return response
     
 
