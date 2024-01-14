@@ -17,18 +17,21 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from .views import *
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+)
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('device/', devices),
+    path('admin', admin.site.urls),
+    path('device', devices),
     path('device/<str:hostname>', device_detail),
     path('device/<str:hostname>/interface', interfaces),
     path('device/<str:hostname>/interface/<str:name>', interface_detail),
     path('device/<str:hostname>/static-route', static_route),
     path('device/<str:hostname>/static-route', static_route),
     path('device/<str:hostname>/routing/ospf-process', ospf_processes),
-    path('device/<str:hostname>/routing/ospf-process/<int:id>', ospf_process_detail)
-
-
-
+    path('device/<str:hostname>/routing/ospf-process/<int:id>', ospf_process_detail),
+    path('api/token', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh', TokenRefreshView.as_view(), name='token_refresh')
 ]
