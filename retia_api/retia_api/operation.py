@@ -1,21 +1,70 @@
 import json, requests
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from requests.exceptions import RequestException
+from rest_framework import status
+
 # Disable Sertificate Insecure Request Warning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
+def check_device_connection(conn_strings: dict)->dict:
+    class response_custom:
+        def __init__(self, err_code, err_text):
+            self.status_code=err_code
+            self.text=err_text
+    
+    target_url="https://%s:%s/restconf"%(conn_strings["mgmt_ipaddr"], conn_strings["port"])
+    try:
+        response=requests.get(url=target_url, auth=(conn_strings["username"],conn_strings["secret"]), headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, verify=False)
+        return response
+    except requests.exceptions.ConnectionError:
+        err=response_custom(status.HTTP_404_NOT_FOUND, json.dumps({"error":"Device offline"}))
+        return err
+    
 
 def getSomething(conn_strings: dict, path: str):
+    class response_custom:
+        def __init__(self, err_code, err_text):
+            self.status_code=err_code
+            self.text=err_text
+
     target_url="https://%s:%s/restconf/data/Cisco-IOS-XE-native:native%s"%(conn_strings["ipaddr"], conn_strings["port"], path)
-    return requests.get(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, verify=False)
+
+    try:
+        response= requests.get(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, verify=False)
+        return response
+    except requests.exceptions.ConnectionError:
+        err=response_custom(status.HTTP_404_NOT_FOUND, json.dumps({"error":"Device offline"}))
+        return err
 
 def patchSomething(conn_strings: dict, path: str, body: str):
+    class response_custom:
+        def __init__(self, err_code, err_text):
+            self.status_code=err_code
+            self.text=err_text
+
     target_url="https://%s:%s/restconf/data/Cisco-IOS-XE-native:native%s"%(conn_strings["ipaddr"], conn_strings["port"], path)
-    return requests.patch(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, data=body, verify=False)
+
+    try:
+        response=requests.patch(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, data=body, verify=False)
+        return response
+    except requests.exceptions.ConnectionError:
+        err=response_custom(status.HTTP_404_NOT_FOUND, json.dumps({"error":"Device offline"}))
+        return err
 
 def putSomething(conn_strings: dict, path: str, body: str):
+    class response_custom:
+        def __init__(self, err_code, err_text):
+            self.status_code=err_code
+            self.text=err_text
+
     target_url="https://%s:%s/restconf/data/Cisco-IOS-XE-native:native%s"%(conn_strings["ipaddr"], conn_strings["port"], path)
-    return requests.put(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, data=body, verify=False)
+
+    try:
+        response=requests.put(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, data=body, verify=False)
+        return response
+    except requests.exceptions.ConnectionError:
+        err=response_custom(status.HTTP_404_NOT_FOUND, json.dumps({"error":"Device offline"}))
+        return err
 
 def postSomething(conn_strings: dict, path: str, body: str):
     target_url="https://%s:%s/restconf/data/Cisco-IOS-XE-native:native%s"%(conn_strings["ipaddr"], conn_strings["port"], path)
@@ -26,39 +75,37 @@ def delSomething(conn_strings: dict, path: str):
     return requests.delete(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, verify=False)
 
 
-
-# Ini buat ngecek device conn, tp belum bisa
-# def check_device_connection(conn_strings):
-#     target_url="https://%s:%s/restconf"%(conn_strings["ipaddr"], conn_strings["port"])
-#     try:
-#         response=requests.get(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, verify=False)
-#         response.raise_for_status()
-#         print("asdasd")
-
-#     except RequestException:
-#         try:
-#             print("asdas")
-#         except:
-#             print("Sadasd")
-
-
-
-
-
-
 def getVersion(conn_strings: dict)->dict:
     response=getSomething(conn_strings, "/version")
-    return {"code": response.status_code, "body": json.loads(response.text)["Cisco-IOS-XE-native:version"]}
+    if len(response.text)>0:
+        try:
+            response_body=json.loads(response.text)["Cisco-IOS-XE-native:version"]
+        except:
+            response_body=json.loads(response.text)
+    else:
+        response_body={}
+    return {"code": response.status_code, "body": response_body }
 
 def getHostname(conn_strings: dict)->dict:
     response=getSomething(conn_strings, "/hostname")
-    return {"code": response.status_code, "body": json.loads(response.text)["Cisco-IOS-XE-native:hostname"]}
+    if len(response.text)>0:
+        try: 
+            response_body=json.loads(response.text)["Cisco-IOS-XE-native:hostname"]
+        except:
+            response_body=json.loads(response.text)
+    else:
+            response_body={}
+    return {"code": response.status_code, "body": response_body }
 
-    
 def setHostname(conn_strings: dict, req_to_change: dict)->dict:
     body=json.dumps({"hostname": req_to_change["hostname"]})
     response=patchSomething(conn_strings, "/hostname", body)
-    return {"code": response.status_code, "body": response.text}
+    try:
+        response_body=json.loads(response.text)
+    except:
+        response_body={}
+
+    return {"code": response.status_code, "body": response_body}
 
 def getLoginBanner(conn_strings: dict)->dict:
     response=getSomething(conn_strings, "/banner/login")
@@ -122,9 +169,6 @@ def getUsername(conn_strings: dict, req_to_change: dict)->dict:
         response_body={}
     return {"code": response.status_code, "body": response_body}
 
-# def setUsername(conn_strings: dict, req_to_change: dict)->dict:
-#     body=json.dumps({})
-
 def getPassEncryption(conn_strings:dict)->dict:
     response=getSomething(conn_strings, "/service/")
     if "password-encryption" in json.loads(response.text)["Cisco-IOS-XE-native:service"]:
@@ -148,9 +192,18 @@ def setPassEncryption(conn_strings, req_to_change: dict):
     return {"code": response.status_code, "body": response_body}
 
 def getInterfaceList(conn_strings:dict)->dict:
+    class response_custom:
+        def __init__(self, err_code, err_text):
+            self.status_code=err_code
+            self.text=err_text
+
     target_url="https://%s:%s/restconf/data/ietf-interfaces:interfaces/interface?fields=name"%(conn_strings["ipaddr"], conn_strings["port"])
-    response=requests.get(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, verify=False)
-    response_code=response.status_code
+
+    try:
+        response=requests.get(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, verify=False)
+    except requests.exceptions.ConnectionError:
+        err=response_custom(status.HTTP_404_NOT_FOUND, json.dumps({"error":"Device offline"}))
+        response=err
 
     if len(response.text)>0:
         try:
@@ -159,36 +212,54 @@ def getInterfaceList(conn_strings:dict)->dict:
             for interface_name in response_body_interface_list:
                 response_body.append(interface_name["name"])
         except:
-            response_body=json.loads(response.text)
+            response_body={json.dumps(response.text)}
     else:
         response_body = []
 
-    return {"code" : response_code, "body" : response_body}
+    return {"code" : response.status_code, "body" : response_body}
 
 def getInterfaceDetail(conn_strings: dict, req_to_show: dict)->dict:
+    class response_custom:
+        def __init__(self, err_code, err_text):
+            self.status_code=err_code
+            self.text=err_text
     target_url="https://%s:%s/restconf/data/ietf-interfaces:interfaces/interface=%s"%(conn_strings["ipaddr"], conn_strings["port"], req_to_show["name"])
-    response=requests.get(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, verify=False)
-    response_code=response.status_code
-    
+
+    try:
+        response=requests.get(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, verify=False)
+    except requests.exceptions.ConnectionError:
+        err=response_custom(status.HTTP_404_NOT_FOUND, json.dumps({"error":"Device offline"}))
+        response=err
+
     if len(response.text)>0:
         try:
             response_body={}
             interface_data=json.loads(response.text)["ietf-interfaces:interface"]
             response_body={"name":interface_data["name"], "type":interface_data["type"], "enabled": interface_data["enabled"], "ip":interface_data["ietf-ip:ipv4"]["address"][0]["ip"], "netmask":interface_data["ietf-ip:ipv4"]["address"][0]["netmask"]}
         except:
-            # response_body=json.loads(response.text)
-            print("error")
+            response_body=json.loads(response.text)
     else:
         response_body={}
-    return {"code" : response_code, "body" : response_body}
+    return {"code" : response.status_code, "body" : response_body}
 
 def setInterfaceDetail(conn_strings:dict, req_to_change: dict)->dict:
+    class response_custom:
+        def __init__(self, err_code, err_text):
+            self.status_code=err_code
+            self.text=err_text
+
     target_url="https://%s:%s/restconf/data/ietf-interfaces:interfaces/interface=%s"%(conn_strings["ipaddr"], conn_strings["port"], req_to_change["name"])
+
+
+    try:
+        response=requests.put(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, verify=False, data=body)
+    except requests.exceptions.ConnectionError:
+        err=response_custom(status.HTTP_404_NOT_FOUND, json.dumps({"error":"Device offline"}))
+        response=err
 
     int_type=getInterfaceDetail(conn_strings, {"name":req_to_change["name"]})["body"]["type"]
 
     body=json.dumps({"ietf-interfaces:interface":{"name":req_to_change["name"], "type": int_type, "enabled": req_to_change["enabled"], "ietf-ip:ipv4": {"address":[{"ip":req_to_change["ip"], "netmask":req_to_change["netmask"]}]},"ietf-ip:ipv6":{}}}, indent=2)
-    response=requests.put(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, verify=False, data=body)
     try:
         response_body=json.loads(response.text)
     except:
@@ -262,10 +333,6 @@ def getOspfProcessDetail(conn_strings: dict, req_to_show: dict)->dict:
             
             if "passive-interface" in response_body:
                 response_body["passive-interface"]=response_body["passive-interface"]["interface"]
-                # passive_interfaces=response_body["passive-interface"]["interface"]:
-                # for interface in passive_interfaces:
-                #     response_body["passive-interface"]=
-
         except:
             response_body=json.loads(response.text)
     else:

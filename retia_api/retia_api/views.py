@@ -15,12 +15,18 @@ def devices(request):
         serializer=DeviceSerializer(instance=device, many=True)
         return Response(serializer.data)
     elif request.method=='POST':
+        device=Device.objects.all()
         serializer=DeviceSerializer(data=request.data)
         if serializer.is_valid():
+            conn=check_device_connection(conn_strings=request.data)
+            if not conn.status_code == 200:
+                return Response(status=conn.status_code, data=conn.text)            
             serializer.save()
             return Response(status=status.HTTP_201_CREATED)
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": serializer.errors})
 
-
+        
 @api_view(['GET','PUT','DELETE'])
 def device_detail(request, hostname):
     # Check whether device exist in database
@@ -30,22 +36,16 @@ def device_detail(request, hostname):
         return Response(status=status.HTTP_404_NOT_FOUND)
     
     # Connection string to device
-    conn_strings={"ipaddr":device.mgmt_ipaddr, "port":"443", 'credential':(device.username, device.secret)}
-
-    # Check device connectivity
-    # ilanging kalo gabisa
-    # conn=check_device_connection(conn_strings=conn_strings)
-    # print(conn)
-
-
-    # Update device hosname based on retia database
-    device_cuurent_hostname=getHostname(conn_strings=conn_strings)["body"]
-    if not device.hostname == device_cuurent_hostname:
-        print("Hostname on %s manaually changed (%s), updating to RETIA's configuration"%(device.hostname, device_cuurent_hostname))
-        setHostname(conn_strings=conn_strings, req_to_change={"hostname":device.hostname})
+    conn_strings={"ipaddr":device.mgmt_ipaddr, "port":device.port, 'credential':(device.username, device.secret)}
 
     # Handle request methods
     if request.method=='GET':
+        # Update device hosname based on retia database
+        device_cuurent_hostname=getHostname(conn_strings=conn_strings)["body"]
+        if not device.hostname == device_cuurent_hostname:
+            print("Hostname on %s manaually changed (%s), updating to RETIA's configuration"%(device.hostname, device_cuurent_hostname))
+            setHostname(conn_strings=conn_strings, req_to_change={"hostname":device.hostname})
+
         serializer=DeviceSerializer(instance=device)
         data=dict(serializer.data)
         data["sotfware_version"]=getVersion(conn_strings=conn_strings)["body"]
@@ -69,7 +69,7 @@ def device_detail(request, hostname):
         device.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-@api_view(['GET'])
+@api_view(['GET'])  
 def interfaces(request, hostname):
     # Check whether device exist in database
     try:
@@ -78,7 +78,7 @@ def interfaces(request, hostname):
         return Response(status=status.HTTP_404_NOT_FOUND)
     
     # Connection string to device
-    conn_strings={"ipaddr":device.mgmt_ipaddr, "port":"443", 'credential':(device.username, device.secret)}
+    conn_strings={"ipaddr":device.mgmt_ipaddr, "port":device.port, 'credential':(device.username, device.secret)}
 
     if request.method=='GET':
         return Response(getInterfaceList(conn_strings=conn_strings))
@@ -92,7 +92,7 @@ def interface_detail(request, hostname, name):
         return Response(status=status.HTTP_404_NOT_FOUND)
     
     # Connection string to device
-    conn_strings={"ipaddr":device.mgmt_ipaddr, "port":"443", 'credential':(device.username, device.secret)}
+    conn_strings={"ipaddr":device.mgmt_ipaddr, "port":device.port, 'credential':(device.username, device.secret)}
     
     # Handle request methods
     if request.method=='GET':
@@ -110,7 +110,7 @@ def static_route(request, hostname):
         return Response(status=status.HTTP_404_NOT_FOUND)
 
     # Connection string to device
-    conn_strings={"ipaddr":device.mgmt_ipaddr, "port":"443", 'credential':(device.username, device.secret)}
+    conn_strings={"ipaddr":device.mgmt_ipaddr, "port":device.port, 'credential':(device.username, device.secret)}
 
     # Handle request methods
     if request.method=="GET":
@@ -127,7 +127,7 @@ def ospf_processes(request, hostname):
         return Response(status=status.HTTP_404_NOT_FOUND)
 
     # Connection string to device
-    conn_strings={"ipaddr":device.mgmt_ipaddr, "port":"443", 'credential':(device.username, device.secret)}
+    conn_strings={"ipaddr":device.mgmt_ipaddr, "port":device.port, 'credential':(device.username, device.secret)}
 
     if request.method=="GET":
         return Response(getOspfProcesses(conn_strings=conn_strings))
@@ -143,7 +143,7 @@ def ospf_process_detail(request, hostname, id):
         return Response(status=status.HTTP_404_NOT_FOUND)
 
     # Connection string to device
-    conn_strings={"ipaddr":device.mgmt_ipaddr, "port":"443", 'credential':(device.username, device.secret)}
+    conn_strings={"ipaddr":device.mgmt_ipaddr, "port":device.port, 'credential':(device.username, device.secret)}
 
     if request.method=="GET":
         return Response(getOspfProcessDetail(conn_strings=conn_strings, req_to_show={"id":id}))
@@ -151,3 +151,5 @@ def ospf_process_detail(request, hostname, id):
         return Response(setOspfProcessDetail(conn_strings=conn_strings, req_to_change=request.data))
     elif request.method=="DELETE":
         return Response(delOspfProcess(conn_strings=conn_strings, req_to_del={"id":id}))
+    
+# BUAT FUNGSI SECURITIY (username, pass encryption, write, erase)
