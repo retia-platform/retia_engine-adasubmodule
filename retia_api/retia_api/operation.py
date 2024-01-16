@@ -6,6 +6,7 @@ from rest_framework import status
 # Disable Sertificate Insecure Request Warning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
+
 def check_device_connection(conn_strings: dict)->dict:
     class response_custom:
         def __init__(self, err_code, err_text):
@@ -212,9 +213,9 @@ def getInterfaceList(conn_strings:dict)->dict:
             for interface_name in response_body_interface_list:
                 response_body.append(interface_name["name"])
         except:
-            response_body={json.dumps(response.text)}
+            response_body=json.loads(response.text)
     else:
-        response_body = []
+        response_body = {}
 
     return {"code" : response.status_code, "body" : response_body}
 
@@ -250,16 +251,17 @@ def setInterfaceDetail(conn_strings:dict, req_to_change: dict)->dict:
 
     target_url="https://%s:%s/restconf/data/ietf-interfaces:interfaces/interface=%s"%(conn_strings["ipaddr"], conn_strings["port"], req_to_change["name"])
 
-
     try:
+        try:
+            int_type=getInterfaceDetail(conn_strings, {"name":req_to_change["name"]})["body"]["type"]
+        except:
+            int_type=None
+        body=json.dumps({"ietf-interfaces:interface":{"name":req_to_change["name"], "type": int_type, "enabled": req_to_change["enabled"], "ietf-ip:ipv4": {"address":[{"ip":req_to_change["ip"], "netmask":req_to_change["netmask"]}]},"ietf-ip:ipv6":{}}}, indent=2)
         response=requests.put(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, verify=False, data=body)
     except requests.exceptions.ConnectionError:
         err=response_custom(status.HTTP_404_NOT_FOUND, json.dumps({"error":"Device offline"}))
         response=err
 
-    int_type=getInterfaceDetail(conn_strings, {"name":req_to_change["name"]})["body"]["type"]
-
-    body=json.dumps({"ietf-interfaces:interface":{"name":req_to_change["name"], "type": int_type, "enabled": req_to_change["enabled"], "ietf-ip:ipv4": {"address":[{"ip":req_to_change["ip"], "netmask":req_to_change["netmask"]}]},"ietf-ip:ipv6":{}}}, indent=2)
     try:
         response_body=json.loads(response.text)
     except:
@@ -361,3 +363,77 @@ def setOspfProcessDetail(conn_strings: dict, req_to_change: dict)->dict:
     body=json.dumps(body, indent=2)
 
     return {"code": response.status_code, "body": response_body}
+
+def getAclList(conn_strings: dict)->dict:
+    response=getSomething(conn_strings=conn_strings, path="/ip/access-list/standard?fields=name")
+    if len(response.text)>0:
+        try:
+            response_body=[]
+            acls=json.loads(response.text)["Cisco-IOS-XE-acl:standard"]
+            for acl in acls:
+                response_body.append(acl["name"])
+        except:
+            response_body=json.loads(response.text)
+    else:
+        response_body={}
+    return {"code": response.status_code, "body": response_body}
+
+def createAcl(conn_strings: dict, req_to_create: dict)->dict:
+    body=json.dumps({"Cisco-IOS-XE-acl:standard": [{"name": req_to_create["name"]}]}, indent=2)
+    response=postSomething(conn_strings, "/ip/access-list", body)
+    try:
+        response_body=json.loads(response.text)
+    except:
+        response_body={}
+    return {"code": response.status_code, "body": response_body}
+
+def getAclDetail(conn_strings: dict, req_to_show: dict)->dict:
+    response=getSomething(conn_strings=conn_strings, path="/ip/access-list/standard=%s"%(req_to_show["name"]))
+    if len(response.text)>0:
+        try:
+            acl_data=json.loads(response.text)["Cisco-IOS-XE-acl:standard"]
+            if "access-list-seq-rule" in acl_data:
+                sequences=[]
+                for acl_sequence in acl_data["access-list-seq-rule"]:
+                    sequence=acl_sequence["sequence"]
+                    action="permit" if "permit" in acl_sequence else "deny"
+                    prefix=acl_sequence[action]["std-ace"]["ipv4-prefix"] if "ipv4-prefix" in acl_sequence[action]["std-ace"] else "any"
+                    mask=acl_sequence[action]["std-ace"]["mask"] if "mask" in acl_sequence[action]["std-ace"] else None
+                    sequences.append({"sequence":sequence, "action": action, "prefix": prefix, "wildcard": mask})
+                response_body={"name":acl_data["name"], "rules":sequences}
+            else:
+                response_body={"name":acl_data["name"]}
+        except:
+            response_body=json.loads(response.text)
+    else:
+        response_body={}
+
+    return {"code": response.status_code, "body": response_body}
+
+def setAclDetail(conn_strings: dict, req_to_change: dict)->dict:
+    rules=[]
+    for rule in req_to_change["rules"]:
+        if rule["wildcard"]:
+            rules.append({"sequence":rule["sequence"], rule["action"]:{"std-ace":{"ipv4-prefix": rule["prefix"], "mask": rule["wildcard"]}}})
+        else:
+            rules.append({"sequence":rule["sequence"], rule["action"]:{"std-ace":{"ipv4-prefix": rule["prefix"]}}})
+    body=json.dumps({"Cisco-IOS-XE-acl:standard":{"name":req_to_change["name"],"access-list-seq-rule":rules}})
+
+    response=putSomething(conn_strings, "/ip/access-list/standard=%s"%(req_to_change["name"]), body)
+    try:
+        response_body=json.loads(response.text)
+    except:
+        response_body={}
+    body=json.dumps(body, indent=2)
+
+    return {"code": response.status_code, "body": response_body}
+
+
+def delAcl(conn_strings: dict, req_to_del:dict)->list:
+    response=delSomething(conn_strings, "/ip/access-list/standard=%s"%(req_to_del["name"]))
+    try:
+        response_body=json.loads(response.text)
+    except:
+        response_body={}
+    return {"code": response.status_code, "body": response_body}
+    

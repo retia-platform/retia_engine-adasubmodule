@@ -13,6 +13,13 @@ def devices(request):
     if request.method=='GET':
         device=Device.objects.all()
         serializer=DeviceSerializer(instance=device, many=True)
+        devices_data=serializer.data
+        for i, device_data in enumerate(devices_data):
+            del devices_data[i]["username"]
+            del devices_data[i]["secret"]
+            del devices_data[i]["port"]
+            del devices_data[i]["created_at"]
+            del devices_data[i]["modified_at"]
         return Response(serializer.data)
     elif request.method=='POST':
         device=Device.objects.all()
@@ -43,7 +50,6 @@ def device_detail(request, hostname):
         # Update device hosname based on retia database
         device_cuurent_hostname=getHostname(conn_strings=conn_strings)["body"]
         if not device.hostname == device_cuurent_hostname:
-            print("Hostname on %s manaually changed (%s), updating to RETIA's configuration"%(device.hostname, device_cuurent_hostname))
             setHostname(conn_strings=conn_strings, req_to_change={"hostname":device.hostname})
 
         serializer=DeviceSerializer(instance=device)
@@ -96,7 +102,7 @@ def interface_detail(request, hostname, name):
     
     # Handle request methods
     if request.method=='GET':
-        return Response(getInterfaceDetail(conn_strings=conn_strings    , req_to_show={"name":name}))
+        return Response(getInterfaceDetail(conn_strings=conn_strings, req_to_show={"name":name}))
     elif request.method=='PUT':
         return Response(setInterfaceDetail(conn_strings=conn_strings, req_to_change=request.data))
         
@@ -152,4 +158,38 @@ def ospf_process_detail(request, hostname, id):
     elif request.method=="DELETE":
         return Response(delOspfProcess(conn_strings=conn_strings, req_to_del={"id":id}))
     
+@api_view(['GET','POST'])
+def acls(request, hostname):
+    # Check whether device exist in database
+    try:
+        device=Device.objects.get(pk=hostname)
+    except Device.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    # Connection string to device
+    conn_strings={"ipaddr":device.mgmt_ipaddr, "port":device.port, 'credential':(device.username, device.secret)}
+
+    if request.method=="GET":
+        return Response(getAclList(conn_strings=conn_strings))
+    elif request.method=="POST":
+        return Response(createAcl(conn_strings=conn_strings, req_to_create={"name":request.data["name"]}))
+
+@api_view(['GET','PUT','DELETE'])
+def acl_detail(request, hostname, name):
+    # Check whether device exist in database
+    try:
+        device=Device.objects.get(pk=hostname)
+    except Device.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    # Connection string to device
+    conn_strings={"ipaddr":device.mgmt_ipaddr, "port":device.port, 'credential':(device.username, device.secret)}
+
+    if request.method=="GET":
+        return Response(getAclDetail(conn_strings=conn_strings, req_to_show={"name":name}))
+    elif request.method=="PUT":
+        return Response(setAclDetail(conn_strings=conn_strings, req_to_change=request.data))
+    elif request.method=="DELETE":
+        return Response(delAcl(conn_strings=conn_strings, req_to_del={"name":name}))
+
 # BUAT FUNGSI SECURITIY (username, pass encryption, write, erase)

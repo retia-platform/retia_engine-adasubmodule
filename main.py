@@ -6,32 +6,15 @@ global_port="443"
 global_auth=("retia", "retia00!")
 global_header={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}
 
-# def check_device_connection(conn_strings):
-#     target_url="https://%s:%s/restconf"%(conn_strings["mgmt_ipaddr"], "443")
-#     response=requests.get(url=target_url, auth={"username": "retia", "secret": "retia00!"}, headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, verify=False)
-
-#     try:
-#         response=requests.get(url=target_url, auth=global_auth, headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, verify=False)
-#         return (response.status_code, response.text)
-#     except requests.exceptions.ConnectionError as e:
-#         return (status.HTTP_404_NOT_FOUND, "Device Offline")
-    
-def check_device_connection(conn_strings):
-    target_url="https://%s:%s/restconf"%(conn_strings["mgmt_ipaddr"], conn_strings["port"])
-    try:
-        response=requests.get(url=target_url, auth=global_auth, headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, verify=False)
-        print(response.status_code)
-    except:
-        print(status.HTTP_404_NOT_FOUND)
-
-check_device_connection({"mgmt_ipaddr":"192.168.137.13"})
+conn_strings={"ipaddr": global_ipaddr, "port": global_port, "credential": global_auth}
 
 
 
 
 # print(getInterfaceList({"ipaddr": global_ipaddr, "port": global_port, "credential": global_auth}))
 # print(getInterfaceDetail({"ipaddr": global_ipaddr, "port": global_port, "credential": global_auth},req_to_show={"name":"GigabitEthernet1"}))
-# print(static_routing.set(global_ipaddr, global_port, global_auth, global_header, [{"destination-prefix":"0.0.0.0/0", "next-hop-address":"192.168.137.2"}]))
+# print(static_routing.set(global_ipaddr, global_port, global_auth, global_header, [{"destin        rule_to_change=[]
+# ation-prefix":"0.0.0.0/0", "next-hop-address":"192.168.137.2"}]))
 # print(getHostname({"ipaddr": global_ipaddr, "port": global_port, "credential": global_auth}))
 # print(check_device_connection({"ipaddr": global_ipaddr, "port": global_port, "credential": global_auth}))
 # print(createOspfProcess({"ipaddr": global_ipaddr, "port": global_port, "credential": global_auth}, {"id":10}))
@@ -40,3 +23,7 @@ check_device_connection({"mgmt_ipaddr":"192.168.137.13"})
 # print(getOspfProcessDetail({"ipaddr": global_ipaddr, "port": global_port, "credential": global_auth},{"id":10}))
 
 # print(setInterfaceDetail({"ipaddr": global_ipaddr, "port": global_port, "credential": global_auth}, {"name":"GigabitEthernet2", "enabled":True, "ip":"10.0.0.5", "netmask":"255.255.255.252"}))
+
+
+print(getAclList(conn_strings=conn_strings, req_to_show={"name":"INI2"}))
+# print(setAclDetail(conn_strings=conn_strings, req_to_change={'name': 'INI2', 'rules': [{'sequence': '10', 'action': 'permit', 'prefix': '9.9.9.9', 'wildcard': "0.0.0.3"},{"sequence":20, 'action':"deny","prefix":"any","wildcard":None}]}))

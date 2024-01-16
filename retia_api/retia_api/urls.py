@@ -32,6 +32,8 @@ urlpatterns = [
     path('device/<str:hostname>/static-route', static_route),
     path('device/<str:hostname>/routing/ospf-process', ospf_processes),
     path('device/<str:hostname>/routing/ospf-process/<int:id>', ospf_process_detail),
+    path('device/<str:hostname>/acl', acls),
+    path('device/<str:hostname>/acl/<str:name>', acl_detail),
     path('api/token', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh', TokenRefreshView.as_view(), name='token_refresh')
 ]
