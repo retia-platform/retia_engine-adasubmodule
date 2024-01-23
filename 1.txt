@@ -1,0 +1,500 @@
+   40  snmpwalk -v 2c -c public 172.16.0.1
+   41  snmpwalk -v 2c -c public 172.16.0.1
+   42  snmpwalk -v 2c -c public 172.16.0.1
+   43  clea
+   44  clear
+   45  clear
+   46  snmpwalk -v 2c -c public 172.16.0.1
+   47  ls
+   48  cd ..
+   49  ls
+   50  wget https://github.com/prometheus/snmp_exporter/releases/download/v0.24.1/snmp_exporter-0.24.1.linux-amd64.tar.gz
+   51  ls
+   52   tar -xzf snmp_exporter-0.24.1.linux-amd64.tar.gz 
+   53  ls
+   54  mv snmp_exporter-0.24.1.linux-amd64 retia/snmp-exporter/ -R
+   55  mv snmp_exporter-0.24.1.linux-amd64 retia/snmp-exporter/
+   56  cd retia/
+   57  ls
+   58  rm retia-engine.tar.gz 
+   59  ls
+   60  mv snmp-exporter retia-engine/
+   61  cd retia-engine/
+   62  ls
+   63  cd snmp-exporter/
+   64  s
+   65  ls
+   66  sudo apt remove --purge proftpd
+   67  sudo apt remove --purge proftpd-core
+   68  apt install sambsa
+   69  apt install samba
+   70  nano /etc/samba/smb.conf 
+   71  service smbd restart
+   72  smbpasswd -a
+   73  smbpasswd -a retia
+   74  ls /home/retia/
+   75  ls /home/retia/ -al
+   76  nano /etc/samba/smb.conf 
+   77  service smbd restart
+   78  nano /etc/systemd/system/snmp-exporter.service
+   79  cd snmp-exporter/
+   80  ls
+   81  pwd
+   82  nano /etc/systemd/system/snmp-exporter.service
+   83  ls
+   84  nano /etc/systemd/system/snmp-exporter.service
+   85  ls
+   86  ls
+   87  ls
+   88  service systemd restart
+   89  systemctl restart systemd
+   90  systemctl restart daemon
+   91  systemctl restart 
+   92  systemctl restart daemon
+   93  systemctl restart systemd
+   94  history | less
+   95  cat 1.txt << history
+   96  cat 1.txt < history
+   97  cat history > 1.txt
+   98  cat $(history) > 1.txt
+   99  history > 1.txt
+  100  nano 1.txt 
+  101  rm 1.txt 
+  102  systemctl daemon-reload
+  103  systemctl enable snmp-exporter
+  104  systemctl start snmp-exporter
+  105  systemctl status snmp-exporter
+  106  systemctl start snmp-exporter
+  107  systemctl status snmp-exporter
+  108  sudo shutdown now
+  109  nano /etc/systemd/system/snmp-exporter.service 
+  110  /home/retia/retia-engine/snmp-exporter/snmp_exporter --config.file=/home/retia/retia-engine/snmp-exporter/snmp.yml
+  111  nano /etc/systemd/system/snmp-exporter.service 
+  112  su - prometheus
+  113  nano /etc/systemd/system/snmp-exporter.service 
+  114  systemctl status prometheus
+  115  systemctl status snmp-exporter
+  116  systemctl stop snmp-exporter
+  117  systemctl status snmp-exporter
+  118  systemctl stop snmp-exporter
+  119  systemctl status snmp-exporter
+  120  systemctl start snmp-exporter
+  121  systemctl status snmp-exporter
+  122  reboot
+  123  systemctl status snmp-exporter
+  124  journalctl -xn
+  125  sudo nano /etc/systemd/system/prometheus.service 
+  126  su - prometheus
+  127  login 
+  128  sudo nano /etc/systemd/system/snmp-exporter.service 
+  129  systemctl start snmp-exporter
+  130  systemctl daemon-reload
+  131  systemctl start snmp-exporter
+  132  systemctl status snmp-exporter
+  133  sudo nano /etc/systemd/system/prometheus.service 
+  134  sudo nano /etc/systemd/system/snmp-exporter.service 
+  135  systemctl daemon-reload
+  136  ls
+  137  .
+  138  pwd
+  139  clear
+  140  ls
+  141  systemctl start prometheus
+  142  systemctl status prometheus
+  143  reboot
+  144  systemctl start prometheus
+  145  systemctl daemon-reload
+  146  systemctl status proemetheus
+  147  systemctl status prometheus
+  148  systemctl status snmp-exporter
+  149  nano /etc/systemd/system/prometheus.service 
+  150  systemctl status snmp-exporter
+  151  systemct status prometheus
+  152  systemctl status prometheus
+  153  systemctl status prometheus
+  154  /home/retia/retia-engine/prometheus/prometheus --config.file=/home/retia/retia-engine/prometheus/prometheus.yml
+  155  systemctl status prometehus
+  156  systemctl status promtheus
+  157  systemctl status prometheus
+  158  journalctl -xn
+  159  systemctl status snmp-exporter
+  160  nano /etc/systemd/system/prometheus.service 
+  161  nano /etc/systemd/system/snmp-exporter.service 
+  162  nano /etc/systemd/system/prometheus.service 
+  163  fg
+  164  systemctl start prometheus
+  165  systemctl status prometheus
+  166  systemctl stop prometheus
+  167  systemctl status prometheus
+  168  systemctl start proemtheus
+  169  systemctl start prometheus
+  170  systemctl status prometheus
+  171  journalctl -xn
+  172  nano /etc/systemd/system/snmp-exporter.service 
+  173  nano /etc/systemd/system/prometheus.service 
+  174  systemctl daemon-reload
+  175  systemctl start prometheus
+  176  systemctl status prometheus
+  177  ip a
+  178  nano /etc/systemd/system/prometheus.service 
+  179  /home/retia/retia-engine/prometheus/prometheus --config.file=/home/retia/retia-engine/prometheus/prometheus.yml
+  180  ps -lh
+  181  ps
+  182  ps -h
+  183  ps 
+  184  ps --help
+  185  ps all
+  186  nano /etc/systemd/system/prometheus.service 
+  187  systemctl daemon-reload
+  188  systemctl start prometheus
+  189  systemctl status prometheus
+  190  ls
+  191  ls data/
+  192  cd retia-engine/
+  193  ls
+  194  ls
+  195  ls
+  196  cd prometheus/
+  197  ls
+  198  pwd prometheus
+  199  pwd prometheus.yml
+  200  /home/retia/retia-engine/prometheus
+  201  cd ..
+  202  s
+  203  ls
+  204  python3 func.py 
+  205  python3 func.py 
+  206  python3 func.py 
+  207  snmpwalk
+  208  snmpwalk 172.16.0.1
+  209  snmpwalk 172.16.0.1 public
+  210  snmpwalk 172.16.0.1 -c publicv2
+  211  snmpwalk --help
+  212  ls
+  213  ls
+  214  python3 func.py 
+  215  python3 func.py 
+  216  python3 func.py 
+  217  python3 func.py 
+  218  python3 func.py 
+  219  python3 func.py 
+  220  python3 func.py 
+  221  python3 func.py 
+  222  python3 func.py 
+  223  python3 func.py 
+  224  python3 func.py 
+  225  python3 func.py 
+  226  python3 func.py 
+  227  python3 func.py 
+  228  python3 func.py 
+  229  python3 func.py 
+  230  python3 func.py 
+  231  python3 func.py 
+  232  python3 func.py 
+  233  python3 func.py 
+  234  python3 func.py 
+  235  python3 func.py 
+  236  python3 func.py 
+  237  python3 func.py 
+  238  python3 func.py 
+  239  python3 func.py 
+  240  python3 func.py 
+  241  python3 func.py 
+  242  python3 func.py 
+  243  python3 func.py 
+  244  python3 func.py
+  245  python3 func.py
+  246  python3 func.py
+  247  python3 func.py
+  248  python3 func.py
+  249  python3 func.py
+  250  python3 func.py
+  251  python3 func.py
+  252  python3 func.py
+  253  python3 func.py
+  254  python3 func.py
+  255  shutdown now
+  256  filebeat keystore
+  257  filebeat keystore list
+  258  filebeat keystore add
+  259  filebeat keystore add Wvzu9rwdtrBGyLcoaTfvvAhl
+  260  filebeat keystore add ES_PW
+  261  nano /etc/filebeat/filebeat.yml 
+  262  filebeat
+  263  filebeat module list
+  264  filebeat module lists
+  265  filebeat modules list
+  266  nano /etc/filebeat/filebeat.yml 
+  267  filebeat modules list
+  268  nano /etc/filebeat/filebeat.yml 
+  269  filebeat modules list
+  270  nano /etc/filebeat/filebeat.yml 
+  271  filebeat keystore list
+  272  nano /etc/filebeat/filebeat.yml 
+  273  filebeat keystore list
+  274  filebeat keystore list
+  275  nano /etc/filebeat/filebeat.yml 
+  276  filebeat keystore list
+  277  filebeat modules 
+  278  filebeat modules list | grep net
+  279  filebeat modules enable netflow
+  280  nano /etc/filebeat/modules.d/netflow.yml 
+  281  filebeat setup
+  282  filebeat setup
+  283  ping google.com
+  284  ping google.com
+  285  ping google.com
+  286  filebeat setup
+  287  tcpdump
+  288  tcpdump
+  289  filebeat setup
+  290  filebeat setup
+  291  nano /etc/network/interfaces
+  292  service networking restart
+  293  service networking restart
+  294  service networking restart
+  295  ping google.com
+  296  filebeat setup
+  297  ping google.com
+  298  filebeat setup
+  299  filebeat setup
+  300  filebeat setup
+  301  filebeat setup -e
+  302  ping 8.8.8.8
+  303  nano /etc/filebeat/filebeat.yml 
+  304  filebeat keystore add ES_PW
+  305  nano /etc/network/interfaces
+  306  shutdown now
+  307  service filebeat status
+  308  service filebeat start
+  309  service filebeat 
+  310  service filebeat start
+  311  service filebeat status
+  312  nano /etc/filebeat/modules.d/netflow.yml 
+  313  ping google.ocm
+  314  ping google.com
+  315  nano /etc/filebeat/modules.d/netflow.yml 
+  316  nano /etc/filebeat/modules.d/netflow.yml 
+  317  service filebeat restart
+  318  service filebeat status
+  319  service filebeat start
+  320  service filebeat status
+  321  ip a
+  322  nano /etc/filebeat/modules.d/netflow.yml 
+  323  service filebeat status
+  324  service filebeat start
+  325  service filebeat status
+  326  service filebeat stop
+  327  service filebeat status
+  328  service filebeat start
+  329  service filebeat status
+  330  jounralctl -xn
+  331  journallctl -xn
+  332  journalctl -xn
+  333  nano /etc/filebeat/modules.d/netflow.yml 
+  334  service filebeat start
+  335  service filebeat status
+  336  nano /etc/filebeat/modules.d/netflow.yml 
+  337  service filebeat status
+  338  service filebeat start
+  339  service filebeat status
+  340  nano /etc/filebeat/modules.d/netflow.yml 
+  341  time
+  342  timedatectl
+  343  nano /etc/filebeat/filebeat.yml 
+  344  filebeat keystore add ES_PW
+  345  filebeat keystore add ES_PW
+  346  nano /etc/filebeat/filebeat.yml 
+  347  nano /etc/filebeat/filebeat.yml 
+  348  service filebeat stop
+  349  filebeat setup
+  350  filebeat setup
+  351  service networking restart
+  352  ip a
+  353  service networking restart
+  354  service networking stop
+  355  service networking start
+  356  service networking start
+  357  nano /etc/network/interfaces
+  358  service networking restart
+  359  ping google.com
+  360  filebeat setup
+  361  sudo shutdown now
+  362  filebeat setup
+  363  nano /etc/network/interfaces
+  364  service networking restart
+  365  ip a
+  366  ping 172.16.0.1
+  367  service filebeat start
+  368  systemctl status filebeat
+  369  systemctl status filebeat
+  370  filebeat modules
+  371  filebeat modules list
+  372  filebeat modules disable netflow
+  373  filebeat modules disable enable
+  374  filebeat modules enable netflow
+  375  service filebeat restart
+  376  cd /etc/fonts/
+  377  cd ../filebeat/
+  378  ls
+  379  nano modules.d/netflow.yml 
+  380  ping 8.8.8.8
+  381  ping google.com
+  382  filebeat setup
+  383  filebeat setup
+  384  filebeat setup
+  385  filebeat setup
+  386  shutdown now
+  387  nano /etc/network/interfaces
+  388  ip a
+  389  service networking restart
+  390  ip a
+  391  nano /etc/network/interfaces
+  392  service networking restart
+  393  ping 8.8.8.8
+  394  filebeat setup
+  395  service filebeat status
+  396  service filebeat restart
+  397  service filebeat restart
+  398  filebeat setup
+  399  nano /etc/network/interfaces
+  400  ifconfig
+  401  ifdown enp0s8
+  402  dmesg | grep enp
+  403  ifdown enp0s8
+  404  ip a
+  405  ifdown enp0s8
+  406  service networking restart
+  407  nano /etc/network/interfaces
+  408  service networking restart
+  409  nano /etc/network/interfaces
+  410  apt install net-tools
+  411  ifconfig 
+  412  ifconfig enp0s8 down
+  413  ifconfig
+  414  ip a
+  415  service networking restat
+  416  service networking restart
+  417  systemctl status networking
+  418  nano /etc/network/interfaces
+  419  journalctl -xn
+  420  service networking restart
+  421  service networking restart
+  422  nano /etc/network/interfaces
+  423  reboot
+  424  nano /etc/network/interfaces
+  425  ifconfig enp0s8 up
+  426  service networking restart
+  427  ip a
+  428  filebeat setup
+  429  cd /etc/filebeat/
+  430  nano filebeat.yml 
+  431  filebeat test output
+  432  service filebeat restart
+  433  service filebeat status
+  434  filebeat test output
+  435  filebeat test output
+  436  filebeat test output
+  437  systemctl status filebeat
+  438  ifconfig
+  439  reboot
+  440  filebeat test output
+  441  service filebeat restart
+  442  filebeat test output
+  443  nano /etc/network/interfaces
+  444  service networking restart
+  445  ip route print
+  446  ip route
+  447  reboot
+  448  service networking restart
+  449  nano /etc/network/interfaces
+  450  ip route
+  451  ip route
+  452  exit
+  453  service alertmanager restart
+  454  service alertmanager restart
+  455  service alert-manager restart
+  456  nano alertmanager
+  457  nano email.yml 
+  458  service alert-manager restart
+  459  nano alertmanager
+  460  nano email.yml 
+  461  lsbrelease
+  462  lsb
+  463  lsb_release
+  464  iname
+  465  uname
+  466  uname -a
+  467  lsb_releae
+  468  lsb_release
+  469  lsb_release
+  470  uname
+  471  uname -l
+  472  uname -h
+  473  uname
+  474  uname --help
+  475  uname -n
+  476  uname -a
+  477  uname -o
+  478  uname -om
+  479  uname -oms
+  480  lsb_release
+  481  hostnamectl
+  482  nano /etc/network/interfaces
+  483  service networking restart
+  484  ping google.com
+  485  nano /etc/network/interfaces
+  486  service networking restart
+  487  nano /etc/network/interfaces
+  488  service networking restart
+  489  ping google.com
+  490  nano /etc/network/interfaces
+  491  ping google.com
+  492  service networking restart && ping google.com
+  493  ping google.com
+  494  nano /etc/network/interfaces
+  495  service networking restart && ping google.com
+  496  nano /etc/network/interfaces
+  497  nano /etc/resolv.conf 
+  498  service networking restart
+  499  ping google.com
+  500  ip a
+  501  cd retia_engine/
+  502  ls
+  503  cd ..
+  504  ls -a
+  505  ls -l
+  506  ls -h
+  507  ls --help
+  508  ls 
+  509  ls retia_engine
+  510  ls retia_engine -l
+  511  ls 
+  512  ls -la
+  513  nano retia_engine/
+  514  cd retia_engine/alert_manager/
+  515  ls
+  516  pwd
+  517  nano /etc/systemd/system/alert-manager.service 
+  518  nano /etc/systemd/system/prometheus.service 
+  519  nano /etc/systemd/system/snmp-exporter.service 
+  520  systemctl deamon-relo
+  521  systemctl deamon-reload
+  522  systemctl deamon-reload
+  523  systemctl daemon-reload
+  524  systemctl status alertmanager
+  525  systemctl status alert-manager
+  526  ls
+  527  cd ..
+  528  ls
+  529  ls
+  530  cd retia_api/
+  531  s
+  532  ls
+  533  git pull
+  534  cd ..
+  535  ls
+  536  git pull
+  537  rm retia_api -Rf
+  538  ls
+  539  history > 1.txt

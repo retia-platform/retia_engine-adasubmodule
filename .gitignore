@@ -4,3 +4,6 @@ include
 lib
 lib64
 pyvenv.cfg
+prometheus
+snmp_exporter
+alert_manager
