@@ -1,10 +1,9 @@
 import json, requests
-from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from requests.exceptions import RequestException
 from rest_framework import status
 
 # Disable Sertificate Insecure Request Warning
-requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
 
 
 def check_device_connection(conn_strings: dict)->dict:
