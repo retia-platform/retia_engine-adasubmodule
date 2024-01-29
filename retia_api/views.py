@@ -237,8 +237,12 @@ def detector_detail(request, device):
     elif request.method=='PUT':
         serializer=DetectorSerializer(instance=detector, data=request.data)
         if serializer.is_valid():
-            if device == serializer.initial_data["device"]:
-                detector.delete()
+            if not device == serializer.initial_data["device"]:
+                device_operation_result=del_device_detector_config(conn_strings=conn_strings)
+                if device_operation_result["code"]==204:
+                    detector.delete()
+                else:
+                    return Response(status=status.http_502_BAD_GATEWAY,data={"error":device_operation_result["body"]})
             serializer.save()
             return Response(status=status.HTTP_204_NO_CONTENT)
         else:
