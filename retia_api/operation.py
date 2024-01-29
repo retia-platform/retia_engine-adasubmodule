@@ -12,9 +12,9 @@ def check_device_connection(conn_strings: dict)->dict:
             self.status_code=err_code
             self.text=err_text
     
-    target_url="https://%s:%s/restconf"%(conn_strings["mgmt_ipaddr"], conn_strings["port"])
+    target_url="https://%s:%s/restconf"%(conn_strings["ipaddr"], conn_strings["port"])
     try:
-        response=requests.get(url=target_url, auth=(conn_strings["username"],conn_strings["secret"]), headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, verify=False)
+        response=requests.get(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, verify=False)
         return response
     except requests.exceptions.ConnectionError:
         err=response_custom(status.HTTP_404_NOT_FOUND, json.dumps({"error":"Device offline"}))
@@ -436,3 +436,162 @@ def delAcl(conn_strings: dict, req_to_del:dict)->list:
         response_body={}
     return {"code": response.status_code, "body": response_body}
     
+    
+def check_device_detector_config(conn_strings:dict, req_to_check:dict)->dict:
+    # Check flow record, exporter, monitor configuration
+    conn_check=check_device_connection(conn_strings=conn_strings)
+    record_config_current=getSomething(conn_strings, "/flow/record=RETIA_RECORD")
+    exporter_config_current=getSomething(conn_strings, "/flow/exporter=RETIA_EXPORTER")
+    monitor_config_current=getSomething(conn_strings, "/flow/monitor=RETIA_MONITOR")
+    interfaces_current=getSomething(conn_strings, "/interface")
+
+    if conn_check.status_code==404:
+        return {"synced":None, "status":"Device offline"}
+    elif record_config_current.status_code==404 or exporter_config_current==404 or monitor_config_current==404 or interfaces_current==404:
+        return {"synced": None, "status":{"error":"Device not configured for netflow"}}
+    else:
+        if record_config_current.status_code==200:
+            record_config_optimal={'Cisco-IOS-XE-flow:record': {'name': 'RETIA_RECORD', 'collect': {'application': {'name': {}}, 'counter': {'bytes': {}, 'packets': {}}, 'interface': {'output': {}}, 'routing': {'destination': {'as': {}}, 'source': {'as': {}}}, 'timestamp': {'sys-uptime': {'first': [None], 'last': [None]}}}, 'description': 'USED FOR RETIA, DO NOT CHANGE', 'match': {'interface': {'input': {}}, 'ipv4': {'destination': {'address': [None]}, 'protocol': [None], 'source': {'address': [None]}, 'tos': [None]}, 'transport': {'destination-port': [None], 'source-port': [None]}}}}
+            if json.loads(record_config_current.text)==record_config_optimal:
+                record_config_current_status="OK"
+            else:
+                record_config_current_status="NEED TO SYNC"
+        else:
+            record_config_current_status=record_config_current.text
+        
+        if exporter_config_current.status_code==200:
+            interface_type=""
+            interface_number=""
+            for char in req_to_check["device_interface_to_filebeat"]:
+                if char.isalpha():
+                    interface_type+=char
+                elif char.isdigit():
+                    interface_number+=char
+            exporter_config_optimal={'Cisco-IOS-XE-flow:exporter': {'name': 'RETIA_EXPORTER', 'description': 'USED FOR RETIA, DO NOT CHANGE', 'destination': {'ipdest': {'ip': req_to_check["filebeat_host"]}}, 'option': {'application-attributes': {'timeout': 300}, 'application-table': {'timeout': 60}}, 'source': {str(interface_type): str(interface_number)}, 'template': {'data': {'timeout': 60}}, 'transport': {'udp': req_to_check["filebeat_port"]}}}
+            if json.loads(exporter_config_current.text)==exporter_config_optimal:
+                exporter_config_current_status="OK"
+            else:
+                exporter_config_current_status="NEED TO SYNC"
+        else:
+            exporter_config_current_status=record_config_current.text
+
+        if monitor_config_current.status_code==200:
+            monitor_config_optimal={'Cisco-IOS-XE-flow:monitor': {'name': 'RETIA_MONITOR', 'cache': {'timeout': {'active': 60}}, 'description': 'USED FOR RETIA, DO NOT CHANGE', 'exporter': [{'name': 'RETIA_EXPORTER'}], 'record': {'type': 'RETIA_RECORD'}}}
+            if json.loads(monitor_config_current.text)==monitor_config_optimal:
+                monitor_config_current_status="OK"
+            else:
+                monitor_config_current_status="NEED TO SYNC"
+        else:
+            monitor_config_current_status=record_config_current.text
+
+        # Check applied flow in interface configuration
+        interface_type=""
+        interface_number=""
+        for char in req_to_check["device_interface_to_server"]:
+            if char.isalpha():
+                interface_type+=char
+            elif char.isdigit():
+                interface_number+=char
+        interfaces_current_data=json.loads(interfaces_current.text)['Cisco-IOS-XE-native:interface']
+        flow_monitor_applied_to_correct_interface=True
+        for interface_types in interfaces_current_data:
+            for interface in interfaces_current_data[interface_types]:
+                try:
+                    flow_interface_setting=interface["ip"]["Cisco-IOS-XE-flow:flow"]["monitor"][0]
+                    print(flow_interface_setting)
+                    if flow_interface_setting=={'name': 'RETIA_MONITOR', 'output': [None]}:
+                        if interface_types == interface_type and interface["name"] == interface_number:
+                            flow_monitor_applied_to_correct_interface*=True
+                        else:
+                            flow_monitor_applied_to_correct_interface*=False
+                    else:
+                        flow_monitor_applied_to_correct_interface*=False
+                except:
+                    if interface_types == interface_type and interface["name"] == interface_number:
+                        flow_monitor_applied_to_correct_interface*=False
+                    else:
+                        flow_monitor_applied_to_correct_interface*=True
+
+        if flow_monitor_applied_to_correct_interface==True:
+            flow_monitor_applied_to_correct_interface="OK"
+        else:
+            flow_monitor_applied_to_correct_interface="NEED TO SYNC"
+
+
+        if record_config_current_status=="OK" and exporter_config_current_status=="OK" and monitor_config_current_status=="OK":
+            synced=True
+        else:
+            synced=False
+        return {"synced": synced, "status":{"flow_record":record_config_current_status, "flow_exporter":exporter_config_current_status, "flow_monitor":monitor_config_current_status, "applied_to_interface":flow_monitor_applied_to_correct_interface}}
+
+def sync_device_detector_config(conn_strings:dict, req_to_change:dict)->dict:
+    # Sync flow record, exporter, monitor
+    interface_type=""
+    interface_number=""
+    for char in req_to_change["device_interface_to_filebeat"]:
+        if char.isalpha():
+            interface_type+=char
+        elif char.isdigit():
+            interface_number+=char
+    body=json.dumps({"Cisco-IOS-XE-native:flow":{'Cisco-IOS-XE-flow:record': [{'name': 'RETIA_RECORD', 'collect': {'application': {'name': {}}, 'counter': {'bytes': {}, 'packets': {}}, 'interface': {'output': {}}, 'routing': {'destination': {'as': {}}, 'source': {'as': {}}}, 'timestamp': {'sys-uptime': {'first': [None], 'last': [None]}}}, 'description': 'USED FOR RETIA, DO NOT CHANGE', 'match': {'interface': {'input': {}}, 'ipv4': {'destination': {'address': [None]}, 'protocol': [None], 'source': {'address': [None]}, 'tos': [None]}, 'transport': {'destination-port': [None], 'source-port': [None]}}}], 'Cisco-IOS-XE-flow:exporter': [{'name': 'RETIA_EXPORTER', 'description': 'USED FOR RETIA, DO NOT CHANGE', 'destination': {'ipdest': {'ip': req_to_change["filebeat_host"]}}, 'option': {'application-attributes': {'timeout': 300}, 'application-table': {'timeout': 60}}, 'source': {str(interface_type): str(interface_number)}, 'template': {'data': {'timeout': 60}}, 'transport': {'udp': req_to_change["filebeat_port"]}}],'Cisco-IOS-XE-flow:monitor': [{'name': 'RETIA_MONITOR', 'cache': {'timeout': {'active': 60}}, 'description': 'USED FOR RETIA, DO NOT CHANGE', 'exporter': [{'name': 'RETIA_EXPORTER'}], 'record': {'type': 'RETIA_RECORD'}}]}}, indent=2)
+    response_flow_config=putSomething(conn_strings, "/Cisco-IOS-XE-native:flow", body)
+    del body
+
+
+    # Sync apply flow to interface
+    ## Delete all flow in all interface
+    interfaces_current=getSomething(conn_strings, "/interface")
+    interfaces_current_data=json.loads(interfaces_current.text)['Cisco-IOS-XE-native:interface']
+    for interface_types in interfaces_current_data:
+        for interface in interfaces_current_data[interface_types]:
+            try:
+                delSomething(conn_strings=conn_strings, path="/interface/%s=%s/ip/flow"%(interface_type, interface["name"]))
+            except:
+                pass
+
+    ## Add flow to correct interface
+    interface_type=""
+    interface_number=""
+    for char in req_to_change["device_interface_to_server"]:
+        if char.isalpha():
+            interface_type+=char
+        elif char.isdigit():
+            interface_number+=char
+    body=json.dumps({ "Cisco-IOS-XE-flow:flow": { "monitor": [ { "name": "RETIA_MONITOR", "output": [None] } ] } })
+    response_interface_flow_config=putSomething(conn_strings, "/interface/%s=%s/ip/flow"%(interface_type, interface_number), body)
+
+
+    if response_flow_config.status_code==204 and response_interface_flow_config.status_code==204:
+        return {"code":status.HTTP_204_NO_CONTENT}
+    else:
+        try:
+            response_body_flow_config=json.loads(response_flow_config.text)
+        except:
+            response_body_flow_config={}
+
+        try:
+            response_body_interface_flow_config=json.loads(response_interface_flow_config.text)
+        except:
+            response_body_interface_flow_config={}
+
+        return {"code":status.http_502_BAD_GATEWAY, "body":{"flow_config":response_body_flow_config, "flow_interface_config": response_body_interface_flow_config}}
+
+def del_device_detector_config(conn_strings:dict)->dict:
+    # Delete all flow in all interface
+    interfaces_current=getSomething(conn_strings, "/interface")
+    interfaces_current_data=json.loads(interfaces_current.text)['Cisco-IOS-XE-native:interface']
+    for interface_types in interfaces_current_data:
+        for interface in interfaces_current_data[interface_types]:
+            try:
+                delSomething(conn_strings=conn_strings, path="/interface/%s=%s/ip/flow"%(interface_types, interface["name"]))
+            except:
+                pass
+
+    # Delete flow
+    flow_del_response=delSomething(conn_strings=conn_strings, path="/flow")
+    
+    try:
+        response_body=json.loads(flow_del_response.text)
+    except:
+        response_body={}
+    return {"code": flow_del_response.status_code, "body": response_body}

@@ -2,9 +2,9 @@ from django.http import JsonResponse
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-from .operation import *
-from .models import Device
-from .serializers import DeviceSerializer
+from .models import Device, Detector
+from .serializers import DeviceSerializer, DetectorSerializer
+from retia_api.operation import *
 
 
 
@@ -25,7 +25,7 @@ def devices(request):
         device=Device.objects.all()
         serializer=DeviceSerializer(data=request.data)
         if serializer.is_valid():
-            conn=check_device_connection(conn_strings=request.data)
+            conn=check_device_connection(conn_strings={"ipaddr":request.data["mgmt_ipaddr"], "port": request.data["port"],'credential':(request.data["username"], request.data["secret"])})
             if not conn.status_code == 200:
                 return Response(status=conn.status_code, data=conn.text)            
             serializer.save()
@@ -191,5 +191,86 @@ def acl_detail(request, hostname, name):
         return Response(setAclDetail(conn_strings=conn_strings, req_to_change=request.data))
     elif request.method=="DELETE":
         return Response(delAcl(conn_strings=conn_strings, req_to_del={"name":name}))
+
+@api_view(['GET','POST'])
+def detectors(request):
+    detector=Detector.objects.all()
+    if request.method=='GET':
+        serializer=DetectorSerializer(instance=detector, many=True)
+        detector_instances=serializer.data
+        detector_instance_name=[]
+        for detector_instance in detector_instances:
+            detector_instance_name.append(detector_instance["device"])
+        return Response(detector_instance_name)
+    elif request.method=='POST':
+        serializer=DetectorSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(status=status.HTTP_201_CREATED)
+        else:
+            return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": serializer.errors})
+
+
+@api_view(['GET', 'PUT',"DELETE"])
+def detector_detail(request, device):
+    # Check whether detector exist in database
+    try:
+        detector=Detector.objects.get(pk=device)
+    except Detector.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    # Check whether device exist in database
+    try:
+        device=Device.objects.get(pk=device)
+    except Device.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    # Connection string to device
+    conn_strings={"ipaddr":device.mgmt_ipaddr, "port":device.port, 'credential':(device.username, device.secret)}
+
+    if request.method=='GET':
+        device_sync_status=check_device_detector_config(conn_strings=conn_strings, req_to_check={"device_interface_to_server": detector.device_interface_to_server, "device_interface_to_filebeat":detector.device_interface_to_filebeat, "filebeat_host": detector.filebeat_host, "filebeat_port":detector.filebeat_port})
+        serializer=DetectorSerializer(instance=detector)
+        detector_data={"sync":device_sync_status, "data":serializer.data}
+        return Response(detector_data)
+    
+    elif request.method=='PUT':
+        serializer=DetectorSerializer(instance=detector, data=request.data)
+        if serializer.is_valid():
+            if device == serializer.initial_data["device"]:
+                detector.delete()
+            serializer.save()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+    elif request.method=='DELETE':
+        device_operation_result=del_device_detector_config(conn_strings=conn_strings)
+        if device_operation_result["code"]==204:
+            detector.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        else:
+            return Response(status=status.http_502_BAD_GATEWAY, data=device_operation_result)
+
+@api_view(['PUT'])
+def detector_sync(request, device):
+    # Check whether detector exist in database
+    try:
+        detector=Detector.objects.get(pk=device)
+    except Detector.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    # Check whether device exist in database
+    try:
+        device=Device.objects.get(pk=device)
+    except Device.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+    
+    # Connection string to device
+    conn_strings={"ipaddr":device.mgmt_ipaddr, "port":device.port, 'credential':(device.username, device.secret)}
+
+    if request.method=='PUT':
+        return Response(sync_device_detector_config(conn_strings=conn_strings, req_to_change={"device_interface_to_filebeat":detector.device_interface_to_filebeat, "device_interface_to_server": detector.device_interface_to_server, "filebeat_host": detector.filebeat_host, "filebeat_port":detector.filebeat_port}))
+
 
 # BUAT FUNGSI SECURITIY (username, pass encryption, write, erase)
