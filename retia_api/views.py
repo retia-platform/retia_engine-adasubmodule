@@ -5,6 +5,9 @@ from rest_framework import status
 from .models import Device, Detector
 from .serializers import DeviceSerializer, DetectorSerializer
 from retia_api.operation import *
+from apscheduler.schedulers.background import BackgroundScheduler
+from retia_api.nescient import core
+from retia_api.elasticclient import get_netflow_resampled
 
 
 
@@ -276,5 +279,30 @@ def detector_sync(request, device):
     if request.method=='PUT':
         return Response(sync_device_detector_config(conn_strings=conn_strings, req_to_change={"device_interface_to_filebeat":detector.device_interface_to_filebeat, "device_interface_to_server": detector.device_interface_to_server, "filebeat_host": detector.filebeat_host, "filebeat_port":detector.filebeat_port}))
 
+@api_view(['PUT'])
+def detector_start(request, device):    
+    def detector_job(detector_instance):
+        print("\n\n\n\n\n----------------------------------------------------------------------------------")
+        core(get_netflow_resampled("now", detector_instance.sampling_interval, detector_instance.elastic_host, detector_instance.elastic_index), detector_instance)
+    
+    # Check whether detector exist in database
+    try:
+        detector=Detector.objects.get(pk=device)
+    except Detector.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+    
+    # if request.method=='PUT':
+    #     scheduler=BackgroundScheduler()
+    #     scheduler.add_job(func=detector_job, args=[detector], trigger="cron", seconds=detector.sampling_interval, id=detector.device,max_instances=1, replace_existing=True)
+    #     scheduler.start()
+    scheduler=BackgroundScheduler()
+    scheduler.add_job(func=detector_job, args=[detector], trigger="cron", second="*/%s"%(detector.sampling_interval), id=str(detector.device), max_instances=1, replace_existing=True)
+    scheduler.start()
+    # try:
+    #     scheduler=BackgroundScheduler()
+    #     scheduler.add_job(func=detector_job, args=[detector], trigger="cron", second="*/%s"%(detector.sampling_interval), id=str(detector.device), max_instances=1, replace_existing=True)
+    #     scheduler.start()
+    # except Exception as e:
+    #     print(e)
 
 # BUAT FUNGSI SECURITIY (username, pass encryption, write, erase)

@@ -1,6 +1,9 @@
 import json, requests
 from requests.exceptions import RequestException
 from rest_framework import status
+from apscheduler.schedulers.background import BackgroundScheduler
+from retia_api.models import *
+
 
 # Disable Sertificate Insecure Request Warning
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
