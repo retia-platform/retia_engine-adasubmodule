@@ -8,8 +8,11 @@ from retia_api.operation import *
 from apscheduler.schedulers.background import BackgroundScheduler
 from retia_api.nescient import core
 from retia_api.elasticclient import get_netflow_resampled
+from retia_api.logging import activity_log
 
 
+def logging():
+    pass
 
 @api_view(['GET','POST'])
 def devices(request):
@@ -30,10 +33,13 @@ def devices(request):
         if serializer.is_valid():
             conn=check_device_connection(conn_strings={"ipaddr":request.data["mgmt_ipaddr"], "port": request.data["port"],'credential':(request.data["username"], request.data["secret"])})
             if not conn.status_code == 200:
+                activity_log("error", request.data["hostname"], "device", conn.text)
                 return Response(status=conn.status_code, data=conn.text)            
             serializer.save()
+            activity_log("info", request.data["hostname"], "device", "Device %s added successfully"%(request.data["hostname"]))
             return Response(status=status.HTTP_201_CREATED)
         else:
+            activity_log("error", request.data["hostname"], "device", "Device %s creation error: %s."%(request.data['hostname'], serializer.errors))
             return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": serializer.errors})
 
         
@@ -62,7 +68,7 @@ def device_detail(request, hostname):
         data["motd_banner"]=getMotdBanner(conn_strings=conn_strings)["body"]
         # Tambah up time, up/down status
 
-        return JsonResponse(data)
+        return Response(data)
     
     elif request.method=='PUT':
         serializer=DeviceSerializer(instance=device, data=request.data)
@@ -72,12 +78,16 @@ def device_detail(request, hostname):
             serializer.save()
             res_hostname=setHostname(conn_strings=conn_strings, req_to_change={"hostname":request.data["hostname"]})
             res_loginbanner=setLoginBanner(conn_strings=conn_strings, req_to_change={"login_banner":request.data["login_banner"]})
-            res_motdbanner=setMotdBanner(conn_strings=conn_strings, req_to_change={"motd_banner":request.data["motd_banner"]}) 
-            return Response({"code": {"hostname_change":res_hostname["code"], "loginbanner_change": res_loginbanner["code"], "motdbanner_change": res_motdbanner["code"]}})
+            res_motdbanner=setMotdBanner(conn_strings=conn_strings, req_to_change={"motd_banner":request.data["motd_banner"]})
+            response_body={"code": {"hostname_change":res_hostname["code"], "loginbanner_change": res_loginbanner["code"], "motdbanner_change": res_motdbanner["code"]}}
+            activity_log("info", hostname, "device", "Device %s edited successfully. Sync status: %s"%(hostname, response_body))
+            return Response(response_body)
         else:
+            activity_log("error", hostname, "device", "Device %s edit error: %s"%(hostname, serializer.errors))
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     elif request.method=='DELETE':
         device.delete()
+        activity_log("info", hostname, "device", "Device %s deleted succesfully"%(hostname))
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 @api_view(['GET'])  
@@ -109,7 +119,14 @@ def interface_detail(request, hostname, name):
     if request.method=='GET':
         return Response(getInterfaceDetail(conn_strings=conn_strings, req_to_show={"name":name}))
     elif request.method=='PUT':
-        return Response(setInterfaceDetail(conn_strings=conn_strings, req_to_change=request.data))
+        result=setInterfaceDetail(conn_strings=conn_strings, req_to_change=request.data)
+
+        if result["code"] == 200  or result["code"]==204:
+            activity_log("info", hostname, "interface", "Interface %s config saved: %s"%(name, request.data))
+        else:
+            activity_log("error", hostname, "interface", "Interface %s config error: %s"%(name, result['body']))
+
+        return Response(result)
         
 
 @api_view(['GET','PUT'])
@@ -126,10 +143,17 @@ def static_route(request, hostname):
     # Handle request methods
     if request.method=="GET":
         return Response(getStaticRoute(conn_strings=conn_strings))
-    if request.method=="PUT":
-        return Response(setStaticRoute(conn_strings=conn_strings, req_to_change=request.data))
+    elif request.method=="PUT":
+        result=setStaticRoute(conn_strings=conn_strings, req_to_change=request.data)
+
+        if result["code"] == 200  or result["code"]==204:
+            activity_log("info", hostname, "static route", "Static route config saved: %s."%(request.data))
+        else:
+            activity_log("error", hostname, "static route", "Static route config error: %s."%(result['body']))
+
+        return Response(result)
     
-@api_view(['GET','POST','DELETE'])
+@api_view(['GET','POST'])
 def ospf_processes(request, hostname):
     # Check whether device exist in database
     try:
@@ -143,7 +167,14 @@ def ospf_processes(request, hostname):
     if request.method=="GET":
         return Response(getOspfProcesses(conn_strings=conn_strings))
     elif request.method=="POST":
-        return Response(createOspfProcess(conn_strings=conn_strings, req_to_create={"id": request.data["id"]}))
+        result=createOspfProcess(conn_strings=conn_strings, req_to_create={"id": request.data["id"]})
+
+        if result["code"] == 200  or result["code"]==201:
+            activity_log("info", hostname, "OSPF", "OSPF Process %s created."%(request.data['id']))
+        else:
+            activity_log("error", hostname, "OSPF", "OSPF Process %s creation error: %s."%(request.data['id'], result['body']))
+
+        return Response(result)
 
 @api_view(['GET','PUT','DELETE'])
 def ospf_process_detail(request, hostname, id):
@@ -159,9 +190,23 @@ def ospf_process_detail(request, hostname, id):
     if request.method=="GET":
         return Response(getOspfProcessDetail(conn_strings=conn_strings, req_to_show={"id":id}))
     elif request.method=="PUT":
-        return Response(setOspfProcessDetail(conn_strings=conn_strings, req_to_change=request.data))
+        result=setOspfProcessDetail(conn_strings=conn_strings, req_to_change=request.data)
+
+        if result["code"] == 200  or result["code"]==204:
+            activity_log("info", hostname, "OSPF", "OSPF process %s config saved: %s."%(id, request.data))
+        else:
+            activity_log("error", hostname, "OSPF", "OSPF process %s config error: %s."%(id, result['body']))
+
+        return Response(result)
     elif request.method=="DELETE":
-        return Response(delOspfProcess(conn_strings=conn_strings, req_to_del={"id":id}))
+        result=delOspfProcess(conn_strings=conn_strings, req_to_del={"id":id})
+
+        if result["code"] == 200  or result["code"]==204:
+            activity_log("info", hostname, "OSPF", "OSPF process %s deleted."%(id))
+        else:
+            activity_log("error", hostname, "OSPF", "OSPF process %s deletion error: %s."%(id, result['body']))
+
+        return Response(result)
     
 @api_view(['GET','POST'])
 def acls(request, hostname):
@@ -177,7 +222,14 @@ def acls(request, hostname):
     if request.method=="GET":
         return Response(getAclList(conn_strings=conn_strings))
     elif request.method=="POST":
-        return Response(createAcl(conn_strings=conn_strings, req_to_create={"name":request.data["name"]}))
+        result=createAcl(conn_strings=conn_strings, req_to_create={"name":request.data["name"]})
+
+        if result["code"] == 200  or result["code"]==204:
+            activity_log("info", hostname, "ACL", "ACL %s created."%(request.data['name']))
+        else:
+            activity_log("error", hostname, "ACL", "ACL %s creation error: %s."%(request.data['name'], result['body']))
+
+        return Response(result)
 
 @api_view(['GET','PUT','DELETE'])
 def acl_detail(request, hostname, name):
@@ -193,9 +245,23 @@ def acl_detail(request, hostname, name):
     if request.method=="GET":
         return Response(getAclDetail(conn_strings=conn_strings, req_to_show={"name":name}))
     elif request.method=="PUT":
-        return Response(setAclDetail(conn_strings=conn_strings, req_to_change=request.data))
+        result=setAclDetail(conn_strings=conn_strings, req_to_change=request.data)
+
+        if result["code"] == 200  or result["code"]==204:
+            activity_log("info", hostname, "ACL", "ACL %s config saved: %s"%(name, request.data))
+        else:
+            activity_log("error", hostname, "ACL", "ACL %s config error: %s"%(name, result['body']))
+        
+        return Response(result)
+    
     elif request.method=="DELETE":
-        return Response(delAcl(conn_strings=conn_strings, req_to_del={"name":name}))
+        result=delAcl(conn_strings=conn_strings, req_to_del={"name":name})
+
+        if result["code"] == 200  or result["code"]==204:
+            activity_log("info", hostname, "ACL", "ACL %s deleted"%(name))
+        else:
+            activity_log("error", hostname, "ACL", "ACL %s deletion error: %s"%(name, result['body']))
+        return Response()
 
 @api_view(['GET','POST'])
 def detectors(request):
@@ -211,8 +277,10 @@ def detectors(request):
         serializer=DetectorSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
+            activity_log("info", 'retia-engine', "detector", "Detector %s added successfully"%(request.data["device"]))
             return Response(status=status.HTTP_201_CREATED)
         else:
+            activity_log("info", 'retia-engine', "detector", "Detector %s addition error: %s."%(request.data["device"], serializer.errors))
             return Response(status=status.HTTP_400_BAD_REQUEST, data={"error": serializer.errors})
 
 
@@ -247,18 +315,23 @@ def detector_detail(request, device):
                 if device_operation_result["code"]==204:
                     detector.delete()
                 else:
+                    activity_log("error", 'retia-engine', "detector", "Detector %s edit error: %s."%(device, device_operation_result['body']))
                     return Response(status=status.http_502_BAD_GATEWAY,data={"error":device_operation_result["body"]})
             serializer.save()
+            activity_log("info", 'retia-engine', "detector", "Detector %s edited successfully."%(device))
             return Response(status=status.HTTP_204_NO_CONTENT)
         else:
+            activity_log("error", 'retia-engine', "detector", "Detector %s edit error: %s."%(device, serializer.errors))
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
     elif request.method=='DELETE':
         device_operation_result=del_device_detector_config(conn_strings=conn_strings)
         if device_operation_result["code"]==204:
             detector.delete()
+            activity_log("error", 'retia-engine', "detector", "Detector %s deleted successfully."%(device))
             return Response(status=status.HTTP_204_NO_CONTENT)
         else:
+            activity_log("error", 'retia-engine', "detector", "Detector %s deletion error: %s."%(device, device_operation_result))
             return Response(status=status.http_502_BAD_GATEWAY, data=device_operation_result)
 
 @api_view(['PUT'])
@@ -279,7 +352,14 @@ def detector_sync(request, device):
     conn_strings={"ipaddr":device.mgmt_ipaddr, "port":device.port, 'credential':(device.username, device.secret)}
 
     if request.method=='PUT':
-        return Response(sync_device_detector_config(conn_strings=conn_strings, req_to_change={"device_interface_to_filebeat":detector.device_interface_to_filebeat, "device_interface_to_server": detector.device_interface_to_server, "filebeat_host": detector.filebeat_host, "filebeat_port":detector.filebeat_port}))
+        result=sync_device_detector_config(conn_strings=conn_strings, req_to_change={"device_interface_to_filebeat":detector.device_interface_to_filebeat, "device_interface_to_server": detector.device_interface_to_server, "filebeat_host": detector.filebeat_host, "filebeat_port":detector.filebeat_port})
+
+        if result["code"] == 200  or result["code"]==204:
+            activity_log("info", 'retia-engine', "detector", "Detector netflow device %s synced."%(device))
+        else:
+            activity_log("error", 'retia-engine', "detector", "Detector netflow device %s failed to sync."%(device, result['body']))
+
+        return Response(result)
 
 @api_view(['PUT'])
 def detector_start(request, device):    

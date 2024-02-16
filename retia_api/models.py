@@ -37,3 +37,14 @@ class Detector(models.Model):
 
     def __str__(self):
         return self.device.hostname
+
+class ActivityLog(models.Model):
+    time = models.DateTimeField(null=True)
+    severity = models.CharField(max_length=255, blank=True)
+    instance = models.CharField(max_length=255, blank=True)
+    category = models.CharField(max_length=10, blank=True)
+    messages = models.CharField(max_length=255, blank=True)
+
+
+    def __str__(self):
+        return "%s | %s | %s | %s | %s"%(self.time, self.severity, self.instance, self.category, self.messages)
