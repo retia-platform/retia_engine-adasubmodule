@@ -116,6 +116,7 @@ def core(data_to_be_used: list, detector_instance: Detector):
 
 
 def handle_result(j, N, data, detector_instance: Detector):
+    print(N)
     for idx in j:
         timestamp = int(str(data[idx]['key'])[:-3])
         if N[0][idx][1] is True and N[1][idx][1] is True and N[2][idx][1] is True and N[3][idx][1] is True:

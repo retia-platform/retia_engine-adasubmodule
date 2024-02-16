@@ -28,7 +28,8 @@ urlpatterns = [
     path('device/<str:hostname>', device_detail),
     path('device/<str:hostname>/interface', interfaces),
     path('device/<str:hostname>/interface/<str:name>', interface_detail),
-    path('device/<str:hostname>/static-route', static_route),
+    path('device/<str:hostname>/interface/<str:name>/in_throughput', interface_in_throughput),
+    path('device/<str:hostname>/interface/<str:name>/out_throughput', interface_out_throughput),
     path('device/<str:hostname>/static-route', static_route),
     path('device/<str:hostname>/routing/ospf-process', ospf_processes),
     path('device/<str:hostname>/routing/ospf-process/<int:id>', ospf_process_detail),
@@ -38,6 +39,7 @@ urlpatterns = [
     path('detector/<str:device>', detector_detail),
     path('detector/<str:device>/sync', detector_sync),
     path('detector/<str:device>/start', detector_start),
+    path('monitoring/buildinfo', monitoring_buildinfo),
     path('api/token', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh', TokenRefreshView.as_view(), name='token_refresh')
 ]

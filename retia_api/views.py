@@ -60,6 +60,8 @@ def device_detail(request, hostname):
         data["sotfware_version"]=getVersion(conn_strings=conn_strings)["body"]
         data["login_banner"]=getLoginBanner(conn_strings=conn_strings)["body"]
         data["motd_banner"]=getMotdBanner(conn_strings=conn_strings)["body"]
+        # Tambah up time, up/down status
+
         return JsonResponse(data)
     
     elif request.method=='PUT':
@@ -296,7 +298,7 @@ def detector_start(request, device):
     #     scheduler.add_job(func=detector_job, args=[detector], trigger="cron", seconds=detector.sampling_interval, id=detector.device,max_instances=1, replace_existing=True)
     #     scheduler.start()
     scheduler=BackgroundScheduler()
-    scheduler.add_job(func=detector_job, args=[detector], trigger="cron", second="*/%s"%(detector.sampling_interval), id=str(detector.device), max_instances=1, replace_existing=True)
+    scheduler.add_job(func=detector_job, args=[detector], trigger="cron", second=detector.sampling_interval, id=str(detector.device), max_instances=1, replace_existing=True)
     scheduler.start()
     # try:
     #     scheduler=BackgroundScheduler()
@@ -304,5 +306,33 @@ def detector_start(request, device):
     #     scheduler.start()
     # except Exception as e:
     #     print(e)
+
+@api_view(['GET'])
+def monitoring_buildinfo(request):
+    if request.method=='GET':
+        return Response(data=getMonitorBuildinfo())
+
+@api_view(['GET'])
+def interface_in_throughput(request, hostname, name):
+    # Check whether device exist in database
+    try:
+        device=Device.objects.get(pk=hostname)
+    except Device.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+    if request.method=='GET':
+        data=request.data
+        return Response(data=getInterfaceInThroughput(device.mgmt_ipaddr, name, data['start_time'], data['end_time']))
+
+@api_view(['GET'])
+def interface_out_throughput(request, hostname, name):
+    # Check whether device exist in database
+    try:
+        device=Device.objects.get(pk=hostname)
+    except Device.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+    if request.method=='GET':
+        data=request.data
+        return Response(data=getInterfaceOutThroughput(device.mgmt_ipaddr, name, data['start_time'], data['end_time']))
+
 
 # BUAT FUNGSI SECURITIY (username, pass encryption, write, erase)

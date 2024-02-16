@@ -3,12 +3,16 @@ from requests.exceptions import RequestException
 from rest_framework import status
 from apscheduler.schedulers.background import BackgroundScheduler
 from retia_api.models import *
+from datetime import datetime
+from math import ceil
 
 
 # Disable Sertificate Insecure Request Warning
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
 
 
+
+# Device configration operation
 def check_device_connection(conn_strings: dict)->dict:
     class response_custom:
         def __init__(self, err_code, err_text):
@@ -24,7 +28,7 @@ def check_device_connection(conn_strings: dict)->dict:
         return err
     
 
-def getSomething(conn_strings: dict, path: str):
+def getSomethingConfig(conn_strings: dict, path: str):
     class response_custom:
         def __init__(self, err_code, err_text):
             self.status_code=err_code
@@ -39,7 +43,7 @@ def getSomething(conn_strings: dict, path: str):
         err=response_custom(status.HTTP_404_NOT_FOUND, json.dumps({"error":"Device offline"}))
         return err
 
-def patchSomething(conn_strings: dict, path: str, body: str):
+def patchSomethingConfig(conn_strings: dict, path: str, body: str):
     class response_custom:
         def __init__(self, err_code, err_text):
             self.status_code=err_code
@@ -54,7 +58,7 @@ def patchSomething(conn_strings: dict, path: str, body: str):
         err=response_custom(status.HTTP_404_NOT_FOUND, json.dumps({"error":"Device offline"}))
         return err
 
-def putSomething(conn_strings: dict, path: str, body: str):
+def putSomethingConfig(conn_strings: dict, path: str, body: str):
     class response_custom:
         def __init__(self, err_code, err_text):
             self.status_code=err_code
@@ -69,17 +73,17 @@ def putSomething(conn_strings: dict, path: str, body: str):
         err=response_custom(status.HTTP_404_NOT_FOUND, json.dumps({"error":"Device offline"}))
         return err
 
-def postSomething(conn_strings: dict, path: str, body: str):
+def postSomethingConfig(conn_strings: dict, path: str, body: str):
     target_url="https://%s:%s/restconf/data/Cisco-IOS-XE-native:native%s"%(conn_strings["ipaddr"], conn_strings["port"], path)
     return requests.post(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, data=body, verify=False)
 
-def delSomething(conn_strings: dict, path: str):
+def delSomethingConfig(conn_strings: dict, path: str):
     target_url="https://%s:%s/restconf/data/Cisco-IOS-XE-native:native%s"%(conn_strings["ipaddr"], conn_strings["port"], path)
     return requests.delete(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, verify=False)
 
 
 def getVersion(conn_strings: dict)->dict:
-    response=getSomething(conn_strings, "/version")
+    response=getSomethingConfig(conn_strings, "/version")
     if len(response.text)>0:
         try:
             response_body=json.loads(response.text)["Cisco-IOS-XE-native:version"]
@@ -90,7 +94,7 @@ def getVersion(conn_strings: dict)->dict:
     return {"code": response.status_code, "body": response_body }
 
 def getHostname(conn_strings: dict)->dict:
-    response=getSomething(conn_strings, "/hostname")
+    response=getSomethingConfig(conn_strings, "/hostname")
     if len(response.text)>0:
         try: 
             response_body=json.loads(response.text)["Cisco-IOS-XE-native:hostname"]
@@ -102,7 +106,7 @@ def getHostname(conn_strings: dict)->dict:
 
 def setHostname(conn_strings: dict, req_to_change: dict)->dict:
     body=json.dumps({"hostname": req_to_change["hostname"]})
-    response=patchSomething(conn_strings, "/hostname", body)
+    response=patchSomethingConfig(conn_strings, "/hostname", body)
     try:
         response_body=json.loads(response.text)
     except:
@@ -111,7 +115,7 @@ def setHostname(conn_strings: dict, req_to_change: dict)->dict:
     return {"code": response.status_code, "body": response_body}
 
 def getLoginBanner(conn_strings: dict)->dict:
-    response=getSomething(conn_strings, "/banner/login")
+    response=getSomethingConfig(conn_strings, "/banner/login")
 
     if len(response.text)>0:
         try:
@@ -125,9 +129,9 @@ def getLoginBanner(conn_strings: dict)->dict:
 def setLoginBanner(conn_strings: dict, req_to_change: dict)->dict:
     if len(req_to_change["login_banner"])>0:
         body=json.dumps({"login": {"banner": req_to_change["login_banner"]}},indent=2)
-        response=patchSomething(conn_strings, "/banner/login", body)
+        response=patchSomethingConfig(conn_strings, "/banner/login", body)
     else:
-        response=delSomething(conn_strings, "/banner/login")
+        response=delSomethingConfig(conn_strings, "/banner/login")
 
     try:
         response_body=json.loads(response.text)
@@ -137,7 +141,7 @@ def setLoginBanner(conn_strings: dict, req_to_change: dict)->dict:
     return {"code": response.status_code, "body": response_body}
 
 def getMotdBanner(conn_strings:dict)->dict:
-    response=getSomething(conn_strings, "/banner/motd")
+    response=getSomethingConfig(conn_strings, "/banner/motd")
 
     if len(response.text)>0:
         try:
@@ -151,9 +155,9 @@ def getMotdBanner(conn_strings:dict)->dict:
 def setMotdBanner(conn_strings:dict, req_to_change: dict)->dict:
     if len(req_to_change["motd_banner"])>0:
         body=json.dumps({"motd": {"banner": req_to_change["motd_banner"]}},indent=2)
-        response=patchSomething(conn_strings, "/banner/motd", body)
+        response=patchSomethingConfig(conn_strings, "/banner/motd", body)
     else:
-        response=delSomething(conn_strings, "/banner/motd")
+        response=delSomethingConfig(conn_strings, "/banner/motd")
     try:
         response_body=json.loads(response.text)
     except:
@@ -161,7 +165,7 @@ def setMotdBanner(conn_strings:dict, req_to_change: dict)->dict:
     return {"code": response.status_code, "body": response_body}
 
 def getUsername(conn_strings: dict, req_to_change: dict)->dict:
-    response=getSomething(conn_strings, "/username")
+    response=getSomethingConfig(conn_strings, "/username")
 
     if len(response.text)>0:
         try:
@@ -173,7 +177,7 @@ def getUsername(conn_strings: dict, req_to_change: dict)->dict:
     return {"code": response.status_code, "body": response_body}
 
 def getPassEncryption(conn_strings:dict)->dict:
-    response=getSomething(conn_strings, "/service/")
+    response=getSomethingConfig(conn_strings, "/service/")
     if "password-encryption" in json.loads(response.text)["Cisco-IOS-XE-native:service"]:
         response_body="true"
     else:
@@ -183,9 +187,9 @@ def getPassEncryption(conn_strings:dict)->dict:
 def setPassEncryption(conn_strings, req_to_change: dict):
     if req_to_change["password-encryption"]=="true":
         body=json.dumps({"Cisco-IOS-XE-native:service": {"password-encryption":[None]}})
-        response=patchSomething(conn_strings, "/service", body)
+        response=patchSomethingConfig(conn_strings, "/service", body)
     elif req_to_change["password-encryption"]=="false" and getPassEncryption(conn_strings)["body"]=="true":
-        response=delSomething(conn_strings, "/service/password-encryption")
+        response=delSomethingConfig(conn_strings, "/service/password-encryption")
 
     try:
         response_body=json.loads(response.text)
@@ -234,6 +238,8 @@ def getInterfaceDetail(conn_strings: dict, req_to_show: dict)->dict:
         err=response_custom(status.HTTP_404_NOT_FOUND, json.dumps({"error":"Device offline"}))
         response=err
 
+    # Tambah mac addr, int status (up/down)
+
     if len(response.text)>0:
         try:
             response_body={}
@@ -271,7 +277,7 @@ def setInterfaceDetail(conn_strings:dict, req_to_change: dict)->dict:
     return {"code": response.status_code, "body": response_body}
 
 def getStaticRoute(conn_strings: dict)->dict:
-    response=getSomething(conn_strings, "/ip/route/ip-route-interface-forwarding-list")
+    response=getSomethingConfig(conn_strings, "/ip/route/ip-route-interface-forwarding-list")
     if len(response.text)>0:
         try:
             response_body=json.loads(response.text)["Cisco-IOS-XE-native:ip-route-interface-forwarding-list"]
@@ -291,7 +297,7 @@ def setStaticRoute(conn_strings: dict, req_to_change: list)->dict:
     return {"code": response.status_code, "body": response_body}
 
 def getOspfProcesses(conn_strings: dict)->list:
-    response=getSomething(conn_strings, "/router/Cisco-IOS-XE-ospf:router-ospf/ospf/process-id?fields=id")
+    response=getSomethingConfig(conn_strings, "/router/Cisco-IOS-XE-ospf:router-ospf/ospf/process-id?fields=id")
     if len(response.text)>0:
         try:
             router_id=json.loads(response.text)["Cisco-IOS-XE-ospf:process-id"]
@@ -306,7 +312,7 @@ def getOspfProcesses(conn_strings: dict)->list:
 
 def createOspfProcess(conn_strings: dict, req_to_create: dict):
     body=json.dumps({"Cisco-IOS-XE-ospf:process-id":{"id": req_to_create["id"]}}, indent=2)
-    response=postSomething(conn_strings, "/router/Cisco-IOS-XE-ospf:router-ospf/ospf/", body)
+    response=postSomethingConfig(conn_strings, "/router/Cisco-IOS-XE-ospf:router-ospf/ospf/", body)
     try:
         response_body=json.loads(response.text)
     except:
@@ -314,7 +320,7 @@ def createOspfProcess(conn_strings: dict, req_to_create: dict):
     return {"code": response.status_code, "body": response_body}
 
 def delOspfProcess(conn_strings: dict, req_to_del:dict)->list:
-    response=delSomething(conn_strings, "/router/Cisco-IOS-XE-ospf:router-ospf/ospf/process-id=%s"%(req_to_del["id"]))
+    response=delSomethingConfig(conn_strings, "/router/Cisco-IOS-XE-ospf:router-ospf/ospf/process-id=%s"%(req_to_del["id"]))
     try:
         response_body=json.loads(response.text)
     except:
@@ -322,7 +328,7 @@ def delOspfProcess(conn_strings: dict, req_to_del:dict)->list:
     return {"code": response.status_code, "body": response_body}
 
 def getOspfProcessDetail(conn_strings: dict, req_to_show: dict)->dict:
-    response=getSomething(conn_strings, "/router/Cisco-IOS-XE-ospf:router-ospf/ospf/process-id=%s"%(req_to_show["id"]))
+    response=getSomethingConfig(conn_strings, "/router/Cisco-IOS-XE-ospf:router-ospf/ospf/process-id=%s"%(req_to_show["id"]))
     if len(response.text)>0:
         try:
             response_body=json.loads(response.text)["Cisco-IOS-XE-ospf:process-id"]
@@ -367,7 +373,7 @@ def setOspfProcessDetail(conn_strings: dict, req_to_change: dict)->dict:
     return {"code": response.status_code, "body": response_body}
 
 def getAclList(conn_strings: dict)->dict:
-    response=getSomething(conn_strings=conn_strings, path="/ip/access-list/standard?fields=name")
+    response=getSomethingConfig(conn_strings=conn_strings, path="/ip/access-list/standard?fields=name")
     if len(response.text)>0:
         try:
             response_body=[]
@@ -382,7 +388,7 @@ def getAclList(conn_strings: dict)->dict:
 
 def createAcl(conn_strings: dict, req_to_create: dict)->dict:
     body=json.dumps({"Cisco-IOS-XE-acl:standard": [{"name": req_to_create["name"]}]}, indent=2)
-    response=postSomething(conn_strings, "/ip/access-list", body)
+    response=postSomethingConfig(conn_strings, "/ip/access-list", body)
     try:
         response_body=json.loads(response.text)
     except:
@@ -390,7 +396,7 @@ def createAcl(conn_strings: dict, req_to_create: dict)->dict:
     return {"code": response.status_code, "body": response_body}
 
 def getAclDetail(conn_strings: dict, req_to_show: dict)->dict:
-    response=getSomething(conn_strings=conn_strings, path="/ip/access-list/standard=%s"%(req_to_show["name"]))
+    response=getSomethingConfig(conn_strings=conn_strings, path="/ip/access-list/standard=%s"%(req_to_show["name"]))
     if len(response.text)>0:
         try:
             acl_data=json.loads(response.text)["Cisco-IOS-XE-acl:standard"]
@@ -432,7 +438,7 @@ def setAclDetail(conn_strings: dict, req_to_change: dict)->dict:
 
 
 def delAcl(conn_strings: dict, req_to_del:dict)->list:
-    response=delSomething(conn_strings, "/ip/access-list/standard=%s"%(req_to_del["name"]))
+    response=delSomethingConfig(conn_strings, "/ip/access-list/standard=%s"%(req_to_del["name"]))
     try:
         response_body=json.loads(response.text)
     except:
@@ -443,10 +449,10 @@ def delAcl(conn_strings: dict, req_to_del:dict)->list:
 def check_device_detector_config(conn_strings:dict, req_to_check:dict)->dict:
     # Check flow record, exporter, monitor configuration
     conn_check=check_device_connection(conn_strings=conn_strings)
-    record_config_current=getSomething(conn_strings, "/flow/record=RETIA_RECORD")
-    exporter_config_current=getSomething(conn_strings, "/flow/exporter=RETIA_EXPORTER")
-    monitor_config_current=getSomething(conn_strings, "/flow/monitor=RETIA_MONITOR")
-    interfaces_current=getSomething(conn_strings, "/interface")
+    record_config_current=getSomethingConfig(conn_strings, "/flow/record=RETIA_RECORD")
+    exporter_config_current=getSomethingConfig(conn_strings, "/flow/exporter=RETIA_EXPORTER")
+    monitor_config_current=getSomethingConfig(conn_strings, "/flow/monitor=RETIA_MONITOR")
+    interfaces_current=getSomethingConfig(conn_strings, "/interface")
 
     if conn_check.status_code==404:
         return {"synced":None, "status":"Device offline"}
@@ -543,12 +549,12 @@ def sync_device_detector_config(conn_strings:dict, req_to_change:dict)->dict:
 
     # Sync apply flow to interface
     ## Delete all flow in all interface
-    interfaces_current=getSomething(conn_strings, "/interface")
+    interfaces_current=getSomethingConfig(conn_strings, "/interface")
     interfaces_current_data=json.loads(interfaces_current.text)['Cisco-IOS-XE-native:interface']
     for interface_types in interfaces_current_data:
         for interface in interfaces_current_data[interface_types]:
             try:
-                delSomething(conn_strings=conn_strings, path="/interface/%s=%s/ip/flow"%(interface_type, interface["name"]))
+                delSomethingConfig(conn_strings=conn_strings, path="/interface/%s=%s/ip/flow"%(interface_type, interface["name"]))
             except:
                 pass
 
@@ -581,20 +587,80 @@ def sync_device_detector_config(conn_strings:dict, req_to_change:dict)->dict:
 
 def del_device_detector_config(conn_strings:dict)->dict:
     # Delete all flow in all interface
-    interfaces_current=getSomething(conn_strings, "/interface")
+    interfaces_current=getSomethingConfig(conn_strings, "/interface")
     interfaces_current_data=json.loads(interfaces_current.text)['Cisco-IOS-XE-native:interface']
     for interface_types in interfaces_current_data:
         for interface in interfaces_current_data[interface_types]:
             try:
-                delSomething(conn_strings=conn_strings, path="/interface/%s=%s/ip/flow"%(interface_types, interface["name"]))
+                delSomethingConfig(conn_strings=conn_strings, path="/interface/%s=%s/ip/flow"%(interface_types, interface["name"]))
             except:
                 pass
 
     # Delete flow
-    flow_del_response=delSomething(conn_strings=conn_strings, path="/flow")
+    flow_del_response=delSomethingConfig(conn_strings=conn_strings, path="/flow")
     
     try:
         response_body=json.loads(flow_del_response.text)
     except:
         response_body={}
     return {"code": flow_del_response.status_code, "body": response_body}
+
+
+# Monitoring node operation
+
+def getSomethingMonitor(query_type: str, query: str="")->dict:
+    target_url="http://localhost:9090/api/v1/%s?query=%s"%(query_type, query)
+    response=requests.get(url=target_url)
+    return response
+
+def getMonitorBuildinfo():
+    prometheus_buildinfo=json.loads(requests.get(url="http://localhost:9090/api/v1/status/buildinfo").text)['data']
+    alertmanager_buildinfo=json.loads(requests.get(url="http://localhost:9093/api/v1/status").text)['data']['versionInfo']
+    snmpexporter_buildinfo=json.loads(requests.get(url="http://localhost:9090/api/v1/query?query=snmp_exporter_build_info").text)['data']['result'][0]['metric']
+
+    response_body={"prometheus": {"version": prometheus_buildinfo["version"], "revision": prometheus_buildinfo["revision"], "goVersion":prometheus_buildinfo["goVersion"]}, "alertmanager": {"version": alertmanager_buildinfo["version"], "revision": alertmanager_buildinfo["revision"], "goVersion":alertmanager_buildinfo["goVersion"]}, "snmpexporter": {"version": snmpexporter_buildinfo["version"], "revision": snmpexporter_buildinfo["revision"], "goVersion":snmpexporter_buildinfo["goversion"]}}
+
+    return response_body
+
+def getAlertStatus():
+    response_body=json.loads(requests.get(url="http://localhost:9090/api/v1/rules").text)["data"]["groups"]
+    return response_body
+
+def getInterfaceInThroughput(mgmt_ipaddr: str, int_name: str, start_time, end_time):
+    start_time_std=datetime.fromisoformat(start_time)
+    end_time_std=datetime.fromisoformat(end_time)
+    step=((end_time_std-start_time_std).seconds)/32
+
+    start_time=start_time.replace("+","%2B")
+    end_time=end_time.replace("+","%2B")
+
+    target_url="http://localhost:9090/api/v1/query_range?query=irate(ifHCInOctets{instance='%s',ifDescr='%s'}[30s])*8&start=%s&end=%s&step=%s"%(mgmt_ipaddr, int_name, start_time, end_time, step)
+    response_body=json.loads(requests.get(url=target_url).text)['data']['result'][0]['values']
+
+    return response_body
+
+def getInterfaceInThroughput(mgmt_ipaddr: str, int_name: str, start_time, end_time):
+    start_time_std=datetime.fromisoformat(start_time)
+    end_time_std=datetime.fromisoformat(end_time)
+    step=((end_time_std-start_time_std).seconds)/32
+
+    start_time=start_time.replace("+","%2B")
+    end_time=end_time.replace("+","%2B")
+
+    target_url="http://localhost:9090/api/v1/query_range?query=irate(ifHCInOctets{instance='%s',ifDescr='%s'}[30s])*8&start=%s&end=%s&step=%s"%(mgmt_ipaddr, int_name, start_time, end_time, step)
+    response_body=json.loads(requests.get(url=target_url).text)['data']['result'][0]['values']
+
+    return response_body
+
+def getInterfaceOutThroughput(mgmt_ipaddr: str, int_name: str, start_time, end_time):
+    start_time_std=datetime.fromisoformat(start_time)
+    end_time_std=datetime.fromisoformat(end_time)
+    step=((end_time_std-start_time_std).seconds)/32
+
+    start_time=start_time.replace("+","%2B")
+    end_time=end_time.replace("+","%2B")
+
+    target_url="http://localhost:9090/api/v1/query_range?query=irate(ifHCOutOctets{instance='%s',ifDescr='%s'}[30s])*8&start=%s&end=%s&step=%s"%(mgmt_ipaddr, int_name, start_time, end_time, step)
+    response_body=json.loads(requests.get(url=target_url).text)['data']['result'][0]['values']
+
+    return response_body
