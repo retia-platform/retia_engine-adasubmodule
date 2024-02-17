@@ -21,7 +21,7 @@ def check_device_connection(conn_strings: dict)->dict:
     
     target_url="https://%s:%s/restconf"%(conn_strings["ipaddr"], conn_strings["port"])
     try:
-        response=requests.get(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, verify=False)
+        response=requests.get(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, verify=False, timeout=5)
         return response
     except requests.exceptions.ConnectionError:
         err=response_custom(status.HTTP_404_NOT_FOUND, json.dumps({"error":"Device offline"}))
@@ -37,7 +37,7 @@ def getSomethingConfig(conn_strings: dict, path: str):
     target_url="https://%s:%s/restconf/data/Cisco-IOS-XE-native:native%s"%(conn_strings["ipaddr"], conn_strings["port"], path)
 
     try:
-        response= requests.get(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, verify=False)
+        response= requests.get(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, verify=False, timeout=5)
         return response
     except requests.exceptions.ConnectionError:
         err=response_custom(status.HTTP_404_NOT_FOUND, json.dumps({"error":"Device offline"}))
@@ -52,7 +52,7 @@ def patchSomethingConfig(conn_strings: dict, path: str, body: str):
     target_url="https://%s:%s/restconf/data/Cisco-IOS-XE-native:native%s"%(conn_strings["ipaddr"], conn_strings["port"], path)
 
     try:
-        response=requests.patch(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, data=body, verify=False)
+        response=requests.patch(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, data=body, verify=False, timeout=5)
         return response
     except requests.exceptions.ConnectionError:
         err=response_custom(status.HTTP_404_NOT_FOUND, json.dumps({"error":"Device offline"}))
@@ -67,7 +67,7 @@ def putSomethingConfig(conn_strings: dict, path: str, body: str):
     target_url="https://%s:%s/restconf/data/Cisco-IOS-XE-native:native%s"%(conn_strings["ipaddr"], conn_strings["port"], path)
 
     try:
-        response=requests.put(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, data=body, verify=False)
+        response=requests.put(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, data=body, verify=False, timeout=5)
         return response
     except requests.exceptions.ConnectionError:
         err=response_custom(status.HTTP_404_NOT_FOUND, json.dumps({"error":"Device offline"}))
@@ -75,11 +75,11 @@ def putSomethingConfig(conn_strings: dict, path: str, body: str):
 
 def postSomethingConfig(conn_strings: dict, path: str, body: str):
     target_url="https://%s:%s/restconf/data/Cisco-IOS-XE-native:native%s"%(conn_strings["ipaddr"], conn_strings["port"], path)
-    return requests.post(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, data=body, verify=False)
+    return requests.post(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, data=body, verify=False, timeout=5)
 
 def delSomethingConfig(conn_strings: dict, path: str):
     target_url="https://%s:%s/restconf/data/Cisco-IOS-XE-native:native%s"%(conn_strings["ipaddr"], conn_strings["port"], path)
-    return requests.delete(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, verify=False)
+    return requests.delete(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, verify=False, timeout=5)
 
 
 def getVersion(conn_strings: dict)->dict:
@@ -608,11 +608,6 @@ def del_device_detector_config(conn_strings:dict)->dict:
 
 # Monitoring node operation
 
-def getSomethingMonitor(query_type: str, query: str="")->dict:
-    target_url="http://localhost:9090/api/v1/%s?query=%s"%(query_type, query)
-    response=requests.get(url=target_url)
-    return response
-
 def getMonitorBuildinfo():
     prometheus_buildinfo=json.loads(requests.get(url="http://localhost:9090/api/v1/status/buildinfo").text)['data']
     alertmanager_buildinfo=json.loads(requests.get(url="http://localhost:9093/api/v1/status").text)['data']['versionInfo']
@@ -626,17 +621,16 @@ def getAlertStatus():
     response_body=json.loads(requests.get(url="http://localhost:9090/api/v1/rules").text)["data"]["groups"]
     return response_body
 
-def getInterfaceInThroughput(mgmt_ipaddr: str, int_name: str, start_time, end_time):
-    start_time_std=datetime.fromisoformat(start_time)
-    end_time_std=datetime.fromisoformat(end_time)
-    step=((end_time_std-start_time_std).seconds)/32
+def getSysUpTime(mgmt_ipaddr: str):
+    response_body=json.loads(requests.get(url="http://localhost:9090/api/v1/query?query=sysUpTime{instance='%s'}/100"%(mgmt_ipaddr)).text)['data']['result'][0]['value'][1]
+    return response_body
 
-    start_time=start_time.replace("+","%2B")
-    end_time=end_time.replace("+","%2B")
+def getDeviceUpStatus(mgmt_ipaddr: str):
+    response_body=json.loads(requests.get(url="http://localhost:9090/api/v1/query?query=up{instance='%s'}"%(mgmt_ipaddr)).text)['data']['result'][0]['value'][1]
+    return response_body
 
-    target_url="http://localhost:9090/api/v1/query_range?query=irate(ifHCInOctets{instance='%s',ifDescr='%s'}[30s])*8&start=%s&end=%s&step=%s"%(mgmt_ipaddr, int_name, start_time, end_time, step)
-    response_body=json.loads(requests.get(url=target_url).text)['data']['result'][0]['values']
-
+def getIntUpStatus(mgmt_ipaddr: str, int_name:str):
+    response_body=json.loads(requests.get(url="http://localhost:9090/api/v1/query?query=ifOperStatus{instance='%s',ifDescr='%s'}"%(mgmt_ipaddr, int_name)).text)['data']['result'][0]['value'][1]
     return response_body
 
 def getInterfaceInThroughput(mgmt_ipaddr: str, int_name: str, start_time, end_time):

@@ -9,7 +9,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from retia_api.nescient import core
 from retia_api.elasticclient import get_netflow_resampled
 from retia_api.logging import activity_log
-
+import yaml
 
 def logging():
     pass
@@ -31,11 +31,23 @@ def devices(request):
         device=Device.objects.all()
         serializer=DeviceSerializer(data=request.data)
         if serializer.is_valid():
+            # Add ip addr to prometheus config and reload it
+            with open('./prometheus/prometheus.yml') as f:
+                prometheus_config=yaml.safe_load(f)
+            prometheus_monitored_host=prometheus_config['scrape_configs'][0]['static_configs'][0]['targets']
+            if not request.data['mgmt_ipaddr'] in prometheus_monitored_host:
+                prometheus_config['scrape_configs'][0]['static_configs'][0]['targets'].append(request.data['mgmt_ipaddr'])
+                with open('./prometheus/prometheus.yml', 'w') as f:
+                    yaml.safe_dump(prometheus_config, stream=f)
+                requests.post(url='http://localhost:9090/-/reload')
+
             conn=check_device_connection(conn_strings={"ipaddr":request.data["mgmt_ipaddr"], "port": request.data["port"],'credential':(request.data["username"], request.data["secret"])})
             if not conn.status_code == 200:
-                activity_log("error", request.data["hostname"], "device", conn.text)
-                return Response(status=conn.status_code, data=conn.text)            
-            serializer.save()
+                activity_log("error", request.data["hostname"], "device", "Device added but detected offline: %s"%(conn.text))
+                serializer.save()
+                return Response(status=conn.status_code, data={"info":"device added but detected offline"})            
+            
+
             activity_log("info", request.data["hostname"], "device", "Device %s added successfully"%(request.data["hostname"]))
             return Response(status=status.HTTP_201_CREATED)
         else:
@@ -66,19 +78,41 @@ def device_detail(request, hostname):
         data["sotfware_version"]=getVersion(conn_strings=conn_strings)["body"]
         data["login_banner"]=getLoginBanner(conn_strings=conn_strings)["body"]
         data["motd_banner"]=getMotdBanner(conn_strings=conn_strings)["body"]
-        # Tambah up time, up/down status
+        data['sys_uptime']=getSysUpTime(device.mgmt_ipaddr)
+        device_statuses=['up','down']
+        data['status']=device_statuses[int(getDeviceUpStatus(device.mgmt_ipaddr))-1]
 
         return Response(data)
     
     elif request.method=='PUT':
         serializer=DeviceSerializer(instance=device, data=request.data)
         if serializer.is_valid():
+            old_mgmt_ipaddr=device.mgmt_ipaddr
+
             if not hostname == serializer.initial_data['hostname']:
                 device.delete()
             serializer.save()
+            conn_strings={"ipaddr":device.mgmt_ipaddr, "port":device.port, 'credential':(device.username, device.secret)}
+
             res_hostname=setHostname(conn_strings=conn_strings, req_to_change={"hostname":request.data["hostname"]})
             res_loginbanner=setLoginBanner(conn_strings=conn_strings, req_to_change={"login_banner":request.data["login_banner"]})
             res_motdbanner=setMotdBanner(conn_strings=conn_strings, req_to_change={"motd_banner":request.data["motd_banner"]})
+
+
+            # Change ip addr of prometheus config and reload it
+            with open('./prometheus/prometheus.yml') as f:
+                prometheus_config=yaml.safe_load(f)
+            prometheus_monitored_host=prometheus_config['scrape_configs'][0]['static_configs'][0]['targets']
+            if not old_mgmt_ipaddr == request.data['mgmt_ipaddr']:
+                for idx, device_ipaddr in enumerate(prometheus_monitored_host):
+                    if old_mgmt_ipaddr == device_ipaddr:
+                        del prometheus_config['scrape_configs'][0]['static_configs'][0]['targets'][idx]
+                if not request.data['mgmt_ipaddr'] in prometheus_monitored_host:
+                    prometheus_config['scrape_configs'][0]['static_configs'][0]['targets'].append(request.data['mgmt_ipaddr'])
+                with open('./prometheus/prometheus.yml', 'w') as f:
+                    yaml.safe_dump(prometheus_config, stream=f)
+                requests.post(url='http://localhost:9090/-/reload')
+
             response_body={"code": {"hostname_change":res_hostname["code"], "loginbanner_change": res_loginbanner["code"], "motdbanner_change": res_motdbanner["code"]}}
             activity_log("info", hostname, "device", "Device %s edited successfully. Sync status: %s"%(hostname, response_body))
             return Response(response_body)
@@ -86,6 +120,17 @@ def device_detail(request, hostname):
             activity_log("error", hostname, "device", "Device %s edit error: %s"%(hostname, serializer.errors))
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     elif request.method=='DELETE':
+        # Delete ip addr from prometheus config and reload it
+        with open('./prometheus/prometheus.yml') as f:
+            prometheus_config=yaml.safe_load(f)
+        prometheus_monitored_host=prometheus_config['scrape_configs'][0]['static_configs'][0]['targets']
+        for idx, device_ipaddr in enumerate(prometheus_monitored_host):
+            if device.mgmt_ipaddr == device_ipaddr:
+                del prometheus_config['scrape_configs'][0]['static_configs'][0]['targets'][idx]
+                with open('./prometheus/prometheus.yml', 'w') as f:
+                    yaml.safe_dump(prometheus_config, stream=f)
+                requests.post(url='http://localhost:9090/-/reload')
+
         device.delete()
         activity_log("info", hostname, "device", "Device %s deleted succesfully"%(hostname))
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -117,7 +162,10 @@ def interface_detail(request, hostname, name):
     
     # Handle request methods
     if request.method=='GET':
-        return Response(getInterfaceDetail(conn_strings=conn_strings, req_to_show={"name":name}))
+        result=getInterfaceDetail(conn_strings=conn_strings, req_to_show={"name":name})
+        int_statuses=['up','down','testing','unknown','dormant','notPresent','lowerLayerDown']
+        result["body"]["status"]=int_statuses[int(getIntUpStatus(device.mgmt_ipaddr, name))-1]
+        return Response(result)
     elif request.method=='PUT':
         result=setInterfaceDetail(conn_strings=conn_strings, req_to_change=request.data)
 
