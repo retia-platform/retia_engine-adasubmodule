@@ -3,16 +3,17 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from .models import Device, Detector
-from .serializers import DeviceSerializer, DetectorSerializer
+from .serializers import DeviceSerializer, DetectorSerializer, ActivityLogSerializer
 from retia_api.operation import *
 from apscheduler.schedulers.background import BackgroundScheduler
 from retia_api.nescient import core
 from retia_api.elasticclient import get_netflow_resampled
 from retia_api.logging import activity_log
+from datetime import datetime, timezone
+import tzlocal
 import yaml
 
-def logging():
-    pass
+
 
 @api_view(['GET','POST'])
 def devices(request):
@@ -193,13 +194,12 @@ def static_route(request, hostname):
         return Response(getStaticRoute(conn_strings=conn_strings))
     elif request.method=="PUT":
         result=setStaticRoute(conn_strings=conn_strings, req_to_change=request.data)
-
         if result["code"] == 200  or result["code"]==204:
             activity_log("info", hostname, "static route", "Static route config saved: %s."%(request.data))
         else:
             activity_log("error", hostname, "static route", "Static route config error: %s."%(result['body']))
-
         return Response(result)
+
     
 @api_view(['GET','POST'])
 def ospf_processes(request, hostname):
@@ -295,21 +295,31 @@ def acl_detail(request, hostname, name):
     elif request.method=="PUT":
         result=setAclDetail(conn_strings=conn_strings, req_to_change=request.data)
 
-        if result["code"] == 200  or result["code"]==204:
-            activity_log("info", hostname, "ACL", "ACL %s config saved: %s"%(name, request.data))
+        if result['acl_edit']["code"] == 200  or result['acl_edit']["code"]==204:
+            activity_log("info", hostname, "ACL", "ACL %s config saved: %s"%(name, request.data['rules']))
         else:
-            activity_log("error", hostname, "ACL", "ACL %s config error: %s"%(name, result['body']))
-        
+            activity_log("error", hostname, "ACL", "ACL %s config error: %s"%(name, result['acl_edit']['body']))
+
+        if result['acl_apply']["code"] == 200  or result['acl_apply']["code"]==204:
+            activity_log("info", hostname, "ACL", "ACL %s applied to interface successfully: %s"%(name, request.data['apply_to_interface']))
+        else:
+            activity_log("error", hostname, "ACL", "ACL %s applied to interface failed: %s"%(name, result['acl_apply']['body']))
+                
         return Response(result)
-    
     elif request.method=="DELETE":
         result=delAcl(conn_strings=conn_strings, req_to_del={"name":name})
 
-        if result["code"] == 200  or result["code"]==204:
-            activity_log("info", hostname, "ACL", "ACL %s deleted"%(name))
+        if result['acl_delete']["code"] == 200  or result['acl_delete']["code"]==204:
+            activity_log("info", hostname, "ACL", "ACL %s deleted."%(name))
         else:
-            activity_log("error", hostname, "ACL", "ACL %s deletion error: %s"%(name, result['body']))
-        return Response()
+            activity_log("error", hostname, "ACL", "ACL %s deletion error: %s."%(name, result['acl_delete']['body']))
+
+        if result['acl_apply_delete']["code"] == 200  or result['acl_apply_delete']["code"]==204:
+            activity_log("info", hostname, "ACL", "ACL %s unapplied on interface."%(name))
+        else:
+            activity_log("error", hostname, "ACL", "ACL %s unapplying error: %s."%(name, result['acl_apply_delete']['body']))
+           
+        return Response(result)
 
 @api_view(['GET','POST'])
 def detectors(request):
@@ -447,6 +457,7 @@ def interface_in_throughput(request, hostname, name):
         device=Device.objects.get(pk=hostname)
     except Device.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
+    
     if request.method=='GET':
         data=request.data
         return Response(data=getInterfaceInThroughput(device.mgmt_ipaddr, name, data['start_time'], data['end_time']))
@@ -462,5 +473,21 @@ def interface_out_throughput(request, hostname, name):
         data=request.data
         return Response(data=getInterfaceOutThroughput(device.mgmt_ipaddr, name, data['start_time'], data['end_time']))
 
+@api_view(['GET'])
+def log_activity(request):
+    if request.method=='GET':
+        start_time=datetime.fromisoformat(request.data['start_time']).astimezone(timezone.utc)
+        end_time=datetime.fromisoformat(request.data['end_time']).astimezone(timezone.utc)
 
+        activitylog=ActivityLog.objects.filter(time__gte=start_time, time__lte=end_time).order_by("-time")
+        serializer=ActivityLogSerializer(instance=activitylog, many=True)
+        response_body=serializer.data
+
+        for idx, log_item in enumerate(response_body):
+            logtime_utc=datetime.fromisoformat(log_item['time'])
+            logtime_local=logtime_utc.astimezone(tz=tzlocal.get_localzone())
+            response_body[idx]['time']=logtime_local
+    
+        return Response(response_body)
+    
 # BUAT FUNGSI SECURITIY (username, pass encryption, write, erase)

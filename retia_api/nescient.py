@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 # from django.utils.datetime_safe import datetime
 from datetime import datetime
+from retia_api.operation import getAclList, getAclDetail, createAcl, setAclDetail
 
 from retia_api.elasticclient import get_netflow_data_at_nearest_time
 # from models import Log, Detector
@@ -131,6 +132,24 @@ def handle_result(j, N, data, detector_instance: Detector):
                 timestamp
             )
             print("Target: %s, action: Detection , status: [Nescient], time: %s, user: anon, message:POSITIVE %s"%(detector_instance.device.mgmt_ipaddr, datetime.now(), report))
+            
+            ## DDoS Mitigation
+            acl_name='retia_dos_mitigation'
+            conn_strings={"ipaddr":detector_instance.device.mgmt_ipaddr, "port":detector_instance.device.port, 'credential':(detector_instance.device.username, detector_instance.device.secret)}
+
+            ddos_mitigation_acl=getAclDetail(conn_strings=conn_strings, req_to_show={'name':acl_name})['body']
+            # get latest sequnce number to use
+            sequence_numbers=[]
+            for rule in ddos_mitigation_acl['rules']:
+                sequence_numbers.append(int(rule['sequence']))
+                # if positive_traffic['source_ipv4_address']
+            next_sequence_numbers=str(max(sequence_numbers)+1)
+            
+            if ddos_mitigation_acl['code']==200 or not 'error' in ddos_mitigation_acl['body']:
+                if ddos_mitigation_acl['code']==404:
+                    createAcl(conn_strings=conn_strings, req_to_create={'name':acl_name})
+                ddos_mitigation_acl['rules'].append({"sequence": next_sequence_numbers,"action": "deny","prefix": positive_traffic['source_ipv4_address']})
+                setAclDetail(conn_strings=conn_strings, req_to_change=ddos_mitigation_acl)
 
             # log = Log(target=detector_instance.device.ip_address, action="Detection", status="[Nescient]",
             #           time=datetime.now(),

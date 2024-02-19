@@ -5,6 +5,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from retia_api.models import *
 from datetime import datetime
 from math import ceil
+import tzlocal
 
 
 # Disable Sertificate Insecure Request Warning
@@ -65,7 +66,6 @@ def putSomethingConfig(conn_strings: dict, path: str, body: str):
             self.text=err_text
 
     target_url="https://%s:%s/restconf/data/Cisco-IOS-XE-native:native%s"%(conn_strings["ipaddr"], conn_strings["port"], path)
-
     try:
         response=requests.put(url=target_url, auth=conn_strings["credential"], headers={"Content-Type": "application/yang-data+json", "Accept": "application/yang-data+json"}, data=body, verify=False, timeout=5)
         return response
@@ -289,7 +289,7 @@ def getStaticRoute(conn_strings: dict)->dict:
 
 def setStaticRoute(conn_strings: dict, req_to_change: list)->dict:
     body=json.dumps({"Cisco-IOS-XE-native:route":{"ip-route-interface-forwarding-list": req_to_change}}, indent=2)
-    response=putSomething(conn_strings, "/ip/route", body )
+    response=putSomethingConfig(conn_strings, "/ip/route", body)
     try:
         response_body=json.loads(response.text)
     except:
@@ -361,7 +361,7 @@ def setOspfProcessDetail(conn_strings: dict, req_to_change: dict)->dict:
             body["Cisco-IOS-XE-ospf:process-id"]["redistribute"][r]={}
             
     body=json.dumps(body)
-    response=putSomething(conn_strings, "/router/Cisco-IOS-XE-ospf:router-ospf/ospf/process-id=%s"%(req_to_change["id"]), body)
+    response=putSomethingConfig(conn_strings, "/router/Cisco-IOS-XE-ospf:router-ospf/ospf/process-id=%s"%(req_to_change["id"]), body)
 
     try:
         response_body=json.loads(response.text)
@@ -396,8 +396,10 @@ def createAcl(conn_strings: dict, req_to_create: dict)->dict:
     return {"code": response.status_code, "body": response_body}
 
 def getAclDetail(conn_strings: dict, req_to_show: dict)->dict:
+
     response=getSomethingConfig(conn_strings=conn_strings, path="/ip/access-list/standard=%s"%(req_to_show["name"]))
     if len(response.text)>0:
+        # Get ACL entry
         try:
             acl_data=json.loads(response.text)["Cisco-IOS-XE-acl:standard"]
             if "access-list-seq-rule" in acl_data:
@@ -413,12 +415,35 @@ def getAclDetail(conn_strings: dict, req_to_show: dict)->dict:
                 response_body={"name":acl_data["name"]}
         except:
             response_body=json.loads(response.text)
+
+        # Get ACL applied to interface
+        response_body["apply_to_interface"]={}
+        interface_config=json.loads(getSomethingConfig(conn_strings, "/interface").text)
+        for config_interface_type in interface_config["Cisco-IOS-XE-native:interface"]:
+            for idx, config_interface_setting in enumerate(interface_config["Cisco-IOS-XE-native:interface"][config_interface_type]):
+                try:
+                    if config_interface_setting['ip']['access-group']['out']['acl']['acl-name']==req_to_show['name']:
+                        response_body['apply_to_interface'][config_interface_type+str(int(idx)+1)]=[]
+                        response_body["apply_to_interface"][config_interface_type+str(int(idx)+1)].append("out")
+                except:
+                    pass
+                try:
+                    if config_interface_setting['ip']['access-group']['in']['acl']['acl-name']==req_to_show['name']:
+                        try:
+                            response_body["apply_to_interface"][config_interface_type+str(int(idx)+1)].append("in")
+                        except KeyError:
+                            response_body['apply_to_interface'][config_interface_type+str(int(idx)+1)]=[]
+                            response_body["apply_to_interface"][config_interface_type+str(int(idx)+1)].append("in")
+                except:
+                    pass
+
     else:
         response_body={}
 
     return {"code": response.status_code, "body": response_body}
 
 def setAclDetail(conn_strings: dict, req_to_change: dict)->dict:
+    # Edit acl entry
     rules=[]
     for rule in req_to_change["rules"]:
         if rule["wildcard"]:
@@ -426,24 +451,93 @@ def setAclDetail(conn_strings: dict, req_to_change: dict)->dict:
         else:
             rules.append({"sequence":rule["sequence"], rule["action"]:{"std-ace":{"ipv4-prefix": rule["prefix"]}}})
     body=json.dumps({"Cisco-IOS-XE-acl:standard":{"name":req_to_change["name"],"access-list-seq-rule":rules}})
-
-    response=putSomething(conn_strings, "/ip/access-list/standard=%s"%(req_to_change["name"]), body)
+    response_acledit=putSomethingConfig(conn_strings, "/ip/access-list/standard=%s"%(req_to_change["name"]), body)
+    response={}
+    del body
     try:
-        response_body=json.loads(response.text)
-    except:
-        response_body={}
-    body=json.dumps(body, indent=2)
+        response["acl_edit"]={'code': response_acledit.status_code, 'body': json.loads(response_acledit.text)}
+    except Exception:
+        response["acl_edit"]={'code': response_acledit.status_code, 'body': {}}
 
-    return {"code": response.status_code, "body": response_body}
+    # Apply acl to interface
+    interface_config=json.loads(getSomethingConfig(conn_strings, "/interface").text)
+    for config_interface_type in interface_config["Cisco-IOS-XE-native:interface"]:
+        for idx, config_interface_setting in enumerate(interface_config["Cisco-IOS-XE-native:interface"][config_interface_type]):
+            # Delete applied acl entry
+            try:
+                if config_interface_setting['ip']['access-group']['out']['acl']['acl-name']==req_to_change['name']:
+                    del interface_config["Cisco-IOS-XE-native:interface"][config_interface_type][idx]['ip']['access-group']['out']['acl']
+            except:
+                pass
+
+            try:
+                if config_interface_setting['ip']['access-group']['in']['acl']['acl-name']==req_to_change['name']:
+                    del interface_config["Cisco-IOS-XE-native:interface"][config_interface_type][idx]['ip']['access-group']['in']['acl']                
+            except:
+                pass
+
+            # Add acl entry to interface
+            apply_to_interface_config=req_to_change['apply_to_interface']
+            for interface_name in apply_to_interface_config:
+                interface_type=""
+                interface_number=""
+                for char in interface_name:
+                    if char.isalpha():
+                        interface_type+=char
+                    elif char.isdigit():
+                        interface_number+=char
+                for direction in apply_to_interface_config[interface_name]:
+                    try:
+                        interface_config["Cisco-IOS-XE-native:interface"][interface_type][int(interface_number)-1]['ip']['access-group'][direction]={'acl':{'acl-name':req_to_change['name'], direction:[None]}}
+                    except KeyError:
+                        try:
+                            interface_config["Cisco-IOS-XE-native:interface"][interface_type][int(interface_number)-1]['ip']['access-group']={}
+                            interface_config["Cisco-IOS-XE-native:interface"][interface_type][int(interface_number)-1]['ip']['access-group'][direction]={'acl':{'acl-name':req_to_change['name'], direction:[None]}}
+                        except KeyError:
+                            interface_config["Cisco-IOS-XE-native:interface"][interface_type][int(interface_number)-1]['ip']={}
+                            interface_config["Cisco-IOS-XE-native:interface"][interface_type][int(interface_number)-1]['ip']['access-group']={}
+                            interface_config["Cisco-IOS-XE-native:interface"][interface_type][int(interface_number)-1]['ip']['access-group'][direction]={'acl':{'acl-name':req_to_change['name'], direction:[None]}}
+    body=json.dumps(interface_config)
+    response_aclapply=putSomethingConfig(conn_strings, "/interface", body)
+    try:
+        response["acl_apply"]={'code': response_aclapply.status_code, 'body': json.loads(response_aclapply.text)}
+    except Exception:
+        response["acl_apply"]={'code': response_aclapply.status_code, 'body': {}}
+    return response
 
 
 def delAcl(conn_strings: dict, req_to_del:dict)->list:
-    response=delSomethingConfig(conn_strings, "/ip/access-list/standard=%s"%(req_to_del["name"]))
+    # delete acl entry
+    response={}
+    response_acldelete=delSomethingConfig(conn_strings, "/ip/access-list/standard=%s"%(req_to_del["name"]))
     try:
-        response_body=json.loads(response.text)
-    except:
-        response_body={}
-    return {"code": response.status_code, "body": response_body}
+        response["acl_delete"]={'code': response_acldelete.status_code, 'body': json.loads(response_acldelete.text)}
+    except Exception:
+        response["acl_delete"]={'code': response_acldelete.status_code, 'body': {}}
+
+    # delete applied acl entry
+    interface_config=json.loads(getSomethingConfig(conn_strings, "/interface").text)
+    for config_interface_type in interface_config["Cisco-IOS-XE-native:interface"]:
+        for idx, config_interface_setting in enumerate(interface_config["Cisco-IOS-XE-native:interface"][config_interface_type]):
+            try:
+                if config_interface_setting['ip']['access-group']['out']['acl']['acl-name']==req_to_del['name']:
+                    del interface_config["Cisco-IOS-XE-native:interface"][config_interface_type][idx]['ip']['access-group']['out']['acl']
+            except:
+                pass
+
+            try:
+                if config_interface_setting['ip']['access-group']['in']['acl']['acl-name']==req_to_del['name']:
+                    del interface_config["Cisco-IOS-XE-native:interface"][config_interface_type][idx]['ip']['access-group']['in']['acl']                
+            except:
+                pass
+    body=json.dumps(interface_config)
+    response_aclapply_delete=putSomethingConfig(conn_strings, "/interface", body)
+    try:
+        response["acl_apply_delete"]={'code': response_aclapply_delete.status_code, 'body': json.loads(response_aclapply_delete.text)}
+    except Exception:
+        response["acl_apply_delete"]={'code': response_aclapply_delete.status_code, 'body': {}}
+
+    return response
     
     
 def check_device_detector_config(conn_strings:dict, req_to_check:dict)->dict:
@@ -507,7 +601,6 @@ def check_device_detector_config(conn_strings:dict, req_to_check:dict)->dict:
             for interface in interfaces_current_data[interface_types]:
                 try:
                     flow_interface_setting=interface["ip"]["Cisco-IOS-XE-flow:flow"]["monitor"][0]
-                    print(flow_interface_setting)
                     if flow_interface_setting=={'name': 'RETIA_MONITOR', 'output': [None]}:
                         if interface_types == interface_type and interface["name"] == interface_number:
                             flow_monitor_applied_to_correct_interface*=True
@@ -543,7 +636,7 @@ def sync_device_detector_config(conn_strings:dict, req_to_change:dict)->dict:
         elif char.isdigit():
             interface_number+=char
     body=json.dumps({"Cisco-IOS-XE-native:flow":{'Cisco-IOS-XE-flow:record': [{'name': 'RETIA_RECORD', 'collect': {'application': {'name': {}}, 'counter': {'bytes': {}, 'packets': {}}, 'interface': {'output': {}}, 'routing': {'destination': {'as': {}}, 'source': {'as': {}}}, 'timestamp': {'sys-uptime': {'first': [None], 'last': [None]}}}, 'description': 'USED FOR RETIA, DO NOT CHANGE', 'match': {'interface': {'input': {}}, 'ipv4': {'destination': {'address': [None]}, 'protocol': [None], 'source': {'address': [None]}, 'tos': [None]}, 'transport': {'destination-port': [None], 'source-port': [None]}}}], 'Cisco-IOS-XE-flow:exporter': [{'name': 'RETIA_EXPORTER', 'description': 'USED FOR RETIA, DO NOT CHANGE', 'destination': {'ipdest': {'ip': req_to_change["filebeat_host"]}}, 'option': {'application-attributes': {'timeout': 300}, 'application-table': {'timeout': 60}}, 'source': {str(interface_type): str(interface_number)}, 'template': {'data': {'timeout': 60}}, 'transport': {'udp': req_to_change["filebeat_port"]}}],'Cisco-IOS-XE-flow:monitor': [{'name': 'RETIA_MONITOR', 'cache': {'timeout': {'active': 60}}, 'description': 'USED FOR RETIA, DO NOT CHANGE', 'exporter': [{'name': 'RETIA_EXPORTER'}], 'record': {'type': 'RETIA_RECORD'}}]}}, indent=2)
-    response_flow_config=putSomething(conn_strings, "/Cisco-IOS-XE-native:flow", body)
+    response_flow_config=putSomethingConfig(conn_strings, "/Cisco-IOS-XE-native:flow", body)
     del body
 
 
@@ -567,7 +660,7 @@ def sync_device_detector_config(conn_strings:dict, req_to_change:dict)->dict:
         elif char.isdigit():
             interface_number+=char
     body=json.dumps({ "Cisco-IOS-XE-flow:flow": { "monitor": [ { "name": "RETIA_MONITOR", "output": [None] } ] } })
-    response_interface_flow_config=putSomething(conn_strings, "/interface/%s=%s/ip/flow"%(interface_type, interface_number), body)
+    response_interface_flow_config=putSomethingConfig(conn_strings, "/interface/%s=%s/ip/flow"%(interface_type, interface_number), body)
 
 
     if response_flow_config.status_code==204 and response_interface_flow_config.status_code==204:
@@ -644,6 +737,8 @@ def getInterfaceInThroughput(mgmt_ipaddr: str, int_name: str, start_time, end_ti
     target_url="http://localhost:9090/api/v1/query_range?query=irate(ifHCInOctets{instance='%s',ifDescr='%s'}[30s])*8&start=%s&end=%s&step=%s"%(mgmt_ipaddr, int_name, start_time, end_time, step)
     response_body=json.loads(requests.get(url=target_url).text)['data']['result'][0]['values']
 
+    for idx, metric_item in enumerate(response_body):
+        response_body[idx][0]=datetime.fromtimestamp(metric_item[0], tz=tzlocal.get_localzone()).isoformat(timespec="seconds")
     return response_body
 
 def getInterfaceOutThroughput(mgmt_ipaddr: str, int_name: str, start_time, end_time):
@@ -656,5 +751,8 @@ def getInterfaceOutThroughput(mgmt_ipaddr: str, int_name: str, start_time, end_t
 
     target_url="http://localhost:9090/api/v1/query_range?query=irate(ifHCOutOctets{instance='%s',ifDescr='%s'}[30s])*8&start=%s&end=%s&step=%s"%(mgmt_ipaddr, int_name, start_time, end_time, step)
     response_body=json.loads(requests.get(url=target_url).text)['data']['result'][0]['values']
+    
+    for idx, metric_item in enumerate(response_body):
+        response_body[idx][0]=datetime.fromtimestamp(metric_item[0], tz=tzlocal.get_localzone()).isoformat(timespec="seconds")
 
     return response_body
