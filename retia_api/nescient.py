@@ -2,14 +2,15 @@ import numpy as np
 import pandas as pd
 # from django.utils.datetime_safe import datetime
 from datetime import datetime
-from retia_api.operation import getAclList, getAclDetail, createAcl, setAclDetail
+from retia_api.operation import getAclList, getAclDetail, createAcl, setAclDetail, delAcl
 
 from retia_api.elasticclient import get_netflow_data_at_nearest_time
 # from models import Log, Detector
 from retia_api.models import Detector
-from icecream import ic
-
 from retia_api.utils import getprotobynumber
+from timeit import default_timer as timer
+
+
 
 
 def core(data_to_be_used: list, detector_instance: Detector):
@@ -117,7 +118,6 @@ def core(data_to_be_used: list, detector_instance: Detector):
 
 
 def handle_result(j, N, data, detector_instance: Detector):
-    print(N)
     for idx in j:
         timestamp = int(str(data[idx]['key'])[:-3])
         if N[0][idx][1] is True and N[1][idx][1] is True and N[2][idx][1] is True and N[3][idx][1] is True:
@@ -133,23 +133,29 @@ def handle_result(j, N, data, detector_instance: Detector):
             )
             print("Target: %s, action: Detection , status: [Nescient], time: %s, user: anon, message:POSITIVE %s"%(detector_instance.device.mgmt_ipaddr, datetime.now(), report))
             
-            ## DDoS Mitigation
-            acl_name='retia_dos_mitigation'
-            conn_strings={"ipaddr":detector_instance.device.mgmt_ipaddr, "port":detector_instance.device.port, 'credential':(detector_instance.device.username, detector_instance.device.secret)}
+            # ## DDoS Mitigation
+            # acl_name='retia_dos_mitigation'
+            # conn_strings={"ipaddr":detector_instance.device.mgmt_ipaddr, "port":detector_instance.device.port, 'credential':(detector_instance.device.username, detector_instance.device.secret)}
 
-            ddos_mitigation_acl=getAclDetail(conn_strings=conn_strings, req_to_show={'name':acl_name})['body']
-            # get latest sequnce number to use
-            sequence_numbers=[]
-            for rule in ddos_mitigation_acl['rules']:
-                sequence_numbers.append(int(rule['sequence']))
-                # if positive_traffic['source_ipv4_address']
-            next_sequence_numbers=str(max(sequence_numbers)+1)
+            # ddos_mitigation_acl_res=getAclDetail(conn_strings=conn_strings, req_to_show={'name':acl_name})
+            # ddos_mitigation_acl=ddos_mitigation_acl_res['body']
+
+            # # get latest sequnce number to use
             
-            if ddos_mitigation_acl['code']==200 or not 'error' in ddos_mitigation_acl['body']:
-                if ddos_mitigation_acl['code']==404:
-                    createAcl(conn_strings=conn_strings, req_to_create={'name':acl_name})
-                ddos_mitigation_acl['rules'].append({"sequence": next_sequence_numbers,"action": "deny","prefix": positive_traffic['source_ipv4_address']})
-                setAclDetail(conn_strings=conn_strings, req_to_change=ddos_mitigation_acl)
+            # if ddos_mitigation_acl_res['code']==200 or not 'error' in ddos_mitigation_acl:
+            #     if ddos_mitigation_acl_res['code']==404:
+            #         createAcl(conn_strings=conn_strings, req_to_create={'name':acl_name})
+            #         ddos_mitigation_acl['name']=acl_name
+            #         ddos_mitigation_acl['rules']=[]
+            #         ddos_mitigation_acl['apply_to_interface']={detector_instance.device_interface_to_server:['out']}
+            #         next_sequence_numbers=1
+            #     else:
+            #         sequence_numbers=[]
+            #         for rule in ddos_mitigation_acl['rules']:
+            #             sequence_numbers.append(int(rule['sequence']))
+            #         next_sequence_numbers=str(max(sequence_numbers)+1)
+            #     ddos_mitigation_acl['rules'].append({"sequence": next_sequence_numbers,"action": "deny","prefix": negative_traffic['source_ipv4_address'], "wildcard":None})
+            #     setAclDetail(conn_strings=conn_strings, req_to_change=ddos_mitigation_acl)
 
             # log = Log(target=detector_instance.device.ip_address, action="Detection", status="[Nescient]",
             #           time=datetime.now(),
@@ -167,6 +173,7 @@ def handle_result(j, N, data, detector_instance: Detector):
                 timestamp
             )
             print("Target: %s, action: Detection , status: [Nescient], time: %s, user: anon, message:NEGATIVE %s"%(detector_instance.device.mgmt_ipaddr, datetime.now(), report))
+
             # log = Log(target=detector_instance.device.ip_address, action="Detection", status="[Nescient]",
             #           time=datetime.now(),
             #           user='Anonymous', messages="NEGATIVE {}".format(report))

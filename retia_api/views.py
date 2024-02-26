@@ -12,7 +12,7 @@ from retia_api.logging import activity_log
 from datetime import datetime, timezone
 import tzlocal
 import yaml
-
+from timeit import default_timer as timer
 
 
 @api_view(['GET','POST'])
@@ -43,13 +43,15 @@ def devices(request):
                 requests.post(url='http://localhost:9090/-/reload')
 
             conn=check_device_connection(conn_strings={"ipaddr":request.data["mgmt_ipaddr"], "port": request.data["port"],'credential':(request.data["username"], request.data["secret"])})
+            serializer.save()
+
             if not conn.status_code == 200:
                 activity_log("error", request.data["hostname"], "device", "Device added but detected offline: %s"%(conn.text))
-                serializer.save()
                 return Response(status=conn.status_code, data={"info":"device added but detected offline"})            
             
 
             activity_log("info", request.data["hostname"], "device", "Device %s added successfully"%(request.data["hostname"]))
+            print("OK")
             return Response(status=status.HTTP_201_CREATED)
         else:
             activity_log("error", request.data["hostname"], "device", "Device %s creation error: %s."%(request.data['hostname'], serializer.errors))
@@ -198,6 +200,7 @@ def static_route(request, hostname):
             activity_log("info", hostname, "static route", "Static route config saved: %s."%(request.data))
         else:
             activity_log("error", hostname, "static route", "Static route config error: %s."%(result['body']))
+
         return Response(result)
 
     
@@ -244,7 +247,6 @@ def ospf_process_detail(request, hostname, id):
             activity_log("info", hostname, "OSPF", "OSPF process %s config saved: %s."%(id, request.data))
         else:
             activity_log("error", hostname, "OSPF", "OSPF process %s config error: %s."%(id, result['body']))
-
         return Response(result)
     elif request.method=="DELETE":
         result=delOspfProcess(conn_strings=conn_strings, req_to_del={"id":id})
@@ -281,6 +283,7 @@ def acls(request, hostname):
 
 @api_view(['GET','PUT','DELETE'])
 def acl_detail(request, hostname, name):
+    start=timer()
     # Check whether device exist in database
     try:
         device=Device.objects.get(pk=hostname)
@@ -304,7 +307,8 @@ def acl_detail(request, hostname, name):
             activity_log("info", hostname, "ACL", "ACL %s applied to interface successfully: %s"%(name, request.data['apply_to_interface']))
         else:
             activity_log("error", hostname, "ACL", "ACL %s applied to interface failed: %s"%(name, result['acl_apply']['body']))
-                
+        print(timer()-start)
+
         return Response(result)
     elif request.method=="DELETE":
         result=delAcl(conn_strings=conn_strings, req_to_del={"name":name})
