@@ -133,34 +133,34 @@ def handle_result(j, N, data, detector_instance: Detector):
             )
             print("Target: %s, action: Detection , status: [Nescient], time: %s, user: anon, message:POSITIVE %s"%(detector_instance.device.mgmt_ipaddr, datetime.now(), report))
             
-            # ## DDoS Mitigation
-            # acl_name='retia_dos_mitigation'
-            # conn_strings={"ipaddr":detector_instance.device.mgmt_ipaddr, "port":detector_instance.device.port, 'credential':(detector_instance.device.username, detector_instance.device.secret)}
+            ## DDoS Mitigation
+            acl_name='retia_dos_mitigation'
+            conn_strings={"ipaddr":detector_instance.device.mgmt_ipaddr, "port":detector_instance.device.port, 'credential':(detector_instance.device.username, detector_instance.device.secret)}
 
-            # ddos_mitigation_acl_res=getAclDetail(conn_strings=conn_strings, req_to_show={'name':acl_name})
-            # ddos_mitigation_acl=ddos_mitigation_acl_res['body']
+            ddos_mitigation_acl_res=getAclDetail(conn_strings=conn_strings, req_to_show={'name':acl_name})
+            ddos_mitigation_acl=ddos_mitigation_acl_res['body']
 
-            # # get latest sequnce number to use
+            # get latest sequnce number to use
             
-            # if ddos_mitigation_acl_res['code']==200 or not 'error' in ddos_mitigation_acl:
-            #     if ddos_mitigation_acl_res['code']==404:
-            #         createAcl(conn_strings=conn_strings, req_to_create={'name':acl_name})
-            #         ddos_mitigation_acl['name']=acl_name
-            #         ddos_mitigation_acl['rules']=[]
-            #         ddos_mitigation_acl['apply_to_interface']={detector_instance.device_interface_to_server:['out']}
-            #         next_sequence_numbers=1
-            #     else:
-            #         sequence_numbers=[]
-            #         for rule in ddos_mitigation_acl['rules']:
-            #             sequence_numbers.append(int(rule['sequence']))
-            #         next_sequence_numbers=str(max(sequence_numbers)+1)
-            #     ddos_mitigation_acl['rules'].append({"sequence": next_sequence_numbers,"action": "deny","prefix": negative_traffic['source_ipv4_address'], "wildcard":None})
-            #     setAclDetail(conn_strings=conn_strings, req_to_change=ddos_mitigation_acl)
+            if ddos_mitigation_acl_res['code']==200 or not 'error' in ddos_mitigation_acl:
+                if ddos_mitigation_acl_res['code']==404:
+                    createAcl(conn_strings=conn_strings, req_to_create={'name':acl_name})
+                    ddos_mitigation_acl['name']=acl_name
+                    ddos_mitigation_acl['rules']=[]
+                    ddos_mitigation_acl['apply_to_interface']={detector_instance.device_interface_to_server:['out']}
+                    next_sequence_numbers=1
+                else:
+                    sequence_numbers=[]
+                    for rule in ddos_mitigation_acl['rules']:
+                        sequence_numbers.append(int(rule['sequence']))
+                    next_sequence_numbers=str(max(sequence_numbers)+1)
+                ddos_mitigation_acl['rules'].append({"sequence": next_sequence_numbers,"action": "deny","prefix": negative_traffic['source_ipv4_address'], "wildcard":None})
+                setAclDetail(conn_strings=conn_strings, req_to_change=ddos_mitigation_acl)
 
-            # log = Log(target=detector_instance.device.ip_address, action="Detection", status="[Nescient]",
-            #           time=datetime.now(),
-            #           user=None, messages="POSITIVE {}".format(report))
-            # log.save()
+            log = Log(target=detector_instance.device.ip_address, action="Detection", status="[Nescient]",
+                      time=datetime.now(),
+                      user=None, messages="POSITIVE {}".format(report))
+            log.save()
         else:
             negative_traffic = get_netflow_data_at_nearest_time(
                 timestamp, detector_instance.elastic_host, detector_instance.elastic_index)
