@@ -1,0 +1,3 @@
+[submodule "retia-api"]
+	path = retia-api
+	url = git@github.com:retia-platform/retia-api.git
