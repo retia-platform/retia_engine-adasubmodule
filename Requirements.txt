@@ -4,7 +4,7 @@ asttokens==2.4.1
 certifi==2023.11.17
 charset-normalizer==3.3.2
 colorama==0.4.6
-Django==5.0.1
+Django==5.0.3
 djangorestframework==3.14.0
 djangorestframework-simplejwt==5.3.1
 elastic-transport==8.12.0
